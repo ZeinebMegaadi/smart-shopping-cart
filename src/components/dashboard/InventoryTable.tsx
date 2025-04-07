@@ -3,8 +3,16 @@ import { useState } from "react";
 import { products as initialProducts, Product } from "@/services/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Edit, Trash } from "lucide-react";
+import { Search, Plus, Edit, Trash, Check, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const InventoryTable = () => {
   const [products, setProducts] = useState<Product[]>(initialProducts);
@@ -50,6 +58,33 @@ const InventoryTable = () => {
     }
   };
   
+  const handleAddProduct = () => {
+    const newProduct: Product = {
+      id: `product_${Date.now()}`,
+      name: "New Product",
+      description: "Product description",
+      image: "/placeholder.svg",
+      barcodeId: `B${Math.floor(1000 + Math.random() * 9000)}`,
+      category: "pantry",
+      subcategory: "Canned Goods",
+      aisle: "E1",
+      price: 9.99,
+      quantityInStock: 100,
+    };
+    
+    setProducts([newProduct, ...products]);
+    setEditingProduct(newProduct);
+    
+    toast({
+      title: "New product added",
+      description: "Please update the product details.",
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -65,7 +100,7 @@ const InventoryTable = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button>
+          <Button onClick={handleAddProduct}>
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </div>
@@ -73,86 +108,186 @@ const InventoryTable = () => {
       
       <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Product
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Barcode ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Subcategory
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Aisle
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead>Barcode ID</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Subcategory</TableHead>
+                <TableHead>Aisle</TableHead>
+                <TableHead>Price (TND)</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filteredProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-muted/50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        <img
-                          className="h-10 w-10 rounded object-cover"
-                          src={product.image}
-                          alt={product.name}
+                <TableRow key={product.id}>
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0 mr-4">
+                          <img
+                            className="h-10 w-10 rounded object-cover"
+                            src={product.image}
+                            alt={product.name}
+                          />
+                        </div>
+                        <Input
+                          className="max-w-[200px]"
+                          value={editingProduct.name}
+                          onChange={(e) => setEditingProduct({
+                            ...editingProduct,
+                            name: e.target.value
+                          })}
                         />
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium">{product.name}</div>
+                    ) : (
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <img
+                            className="h-10 w-10 rounded object-cover"
+                            src={product.image}
+                            alt={product.name}
+                          />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium">{product.name}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm">{product.barcodeId}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm">{product.category}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm">{product.subcategory}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm">{product.aisle}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm">${product.price.toFixed(2)}</div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className={`text-sm ${product.quantityInStock < 50 ? "text-red-500 font-medium" : ""}`}>
-                      {product.quantityInStock}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
-                    <div className="flex justify-end space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => setEditingProduct(product)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteProduct(product.id)}>
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        value={editingProduct.barcodeId}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          barcodeId: e.target.value
+                        })}
+                      />
+                    ) : (
+                      <div className="text-sm">{product.barcodeId}</div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        value={editingProduct.category}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          category: e.target.value
+                        })}
+                      />
+                    ) : (
+                      <div className="text-sm">{product.category}</div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        value={editingProduct.subcategory}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          subcategory: e.target.value
+                        })}
+                      />
+                    ) : (
+                      <div className="text-sm">{product.subcategory}</div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        value={editingProduct.aisle}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          aisle: e.target.value
+                        })}
+                      />
+                    ) : (
+                      <div className="text-sm">{product.aisle}</div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        type="number"
+                        value={editingProduct.price}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          price: parseFloat(e.target.value) || 0
+                        })}
+                      />
+                    ) : (
+                      <div className="text-sm">{product.price.toFixed(2)}</div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {editingProduct?.id === product.id ? (
+                      <Input
+                        type="number"
+                        value={editingProduct.quantityInStock}
+                        onChange={(e) => setEditingProduct({
+                          ...editingProduct,
+                          quantityInStock: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    ) : (
+                      <div className={`text-sm ${product.quantityInStock < 50 ? "text-red-500 font-medium" : ""}`}>
+                        {product.quantityInStock}
+                      </div>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell className="text-right">
+                    {editingProduct?.id === product.id ? (
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleUpdateProduct(editingProduct)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={handleCancelEdit}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex justify-end space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => setEditingProduct({...product})}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
         
         {filteredProducts.length === 0 && (

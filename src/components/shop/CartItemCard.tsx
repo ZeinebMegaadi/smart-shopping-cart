@@ -41,7 +41,7 @@ const CartItemCard = ({ item }: CartItemCardProps) => {
               {product.category} / {product.subcategory}
             </p>
           </div>
-          <p className="text-base font-medium">${product.price.toFixed(2)}</p>
+          <p className="text-base font-medium">{product.price.toFixed(2)} TND</p>
         </div>
         
         <div className="flex items-center justify-between mt-2">
@@ -69,7 +69,7 @@ const CartItemCard = ({ item }: CartItemCardProps) => {
           
           <div className="flex items-center">
             <span className="mr-4 text-sm text-muted-foreground">
-              ${(product.price * quantity).toFixed(2)}
+              {(product.price * quantity).toFixed(2)} TND
             </span>
             <Button 
               variant="ghost" 

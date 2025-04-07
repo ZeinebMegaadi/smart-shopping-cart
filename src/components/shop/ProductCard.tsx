@@ -51,7 +51,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <h3 className="font-medium text-lg mb-1">{product.name}</h3>
         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
         <div className="flex items-center justify-between">
-          <span className="font-semibold">${product.price.toFixed(2)}</span>
+          <span className="font-semibold">{product.price.toFixed(2)} TND</span>
           <span className="text-sm text-muted-foreground">{product.quantityInStock} in stock</span>
         </div>
         <div className="mt-4 flex items-center justify-between">

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { categories } from "@/services/mockData";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { AArrowDown, AArrowUp, ALargeSmall } from "lucide-react";
+import { ArrowDown, ArrowUp, LayoutGrid } from "lucide-react";
 
 interface CategoryListProps {
   selectedCategory?: string;
@@ -11,6 +11,33 @@ interface CategoryListProps {
 }
 
 const CategoryList = ({ selectedCategory, onSelectCategory }: CategoryListProps) => {
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
+  const [displaySize, setDisplaySize] = useState<'normal' | 'large'>('large');
+  
+  // Create a copy of categories to sort
+  const sortedCategories = [...categories];
+  
+  if (sortOrder === 'asc') {
+    sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortOrder === 'desc') {
+    sortedCategories.sort((a, b) => b.name.localeCompare(a.name));
+  }
+  
+  const toggleSortOrder = (order: 'asc' | 'desc') => {
+    if (sortOrder === order) {
+      setSortOrder(null); // Reset sorting if clicking the same button
+    } else {
+      setSortOrder(order);
+    }
+  };
+  
+  const toggleDisplaySize = () => {
+    setDisplaySize(displaySize === 'normal' ? 'large' : 'normal');
+  };
+  
+  const buttonSize = displaySize === 'large' ? "w-32 h-40" : "w-28 h-32";
+  const iconSize = displaySize === 'large' ? "text-4xl" : "text-3xl";
+  
   return (
     <div className="mb-10">
       <div className="flex items-center justify-between mb-6">
@@ -19,23 +46,29 @@ const CategoryList = ({ selectedCategory, onSelectCategory }: CategoryListProps)
           <Button 
             variant="outline" 
             size="icon" 
-            className="w-8 h-8 text-muted-foreground hover:text-foreground"
+            className={`w-8 h-8 ${sortOrder === 'asc' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => toggleSortOrder('asc')}
+            title="Sort A-Z"
           >
-            <AArrowDown className="h-4 w-4" />
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className={`w-8 h-8 ${sortOrder === 'desc' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => toggleSortOrder('desc')}
+            title="Sort Z-A"
+          >
+            <ArrowUp className="h-4 w-4" />
           </Button>
           <Button 
             variant="outline" 
             size="icon" 
             className="w-8 h-8 text-muted-foreground hover:text-foreground"
+            onClick={toggleDisplaySize}
+            title="Toggle display size"
           >
-            <AArrowUp className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="w-8 h-8 text-muted-foreground hover:text-foreground"
-          >
-            <ALargeSmall className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -44,21 +77,21 @@ const CategoryList = ({ selectedCategory, onSelectCategory }: CategoryListProps)
         <div className="flex space-x-4 pb-4">
           <Button
             variant={!selectedCategory ? "default" : "outline"}
-            className="flex flex-col items-center justify-center w-32 h-40 rounded-xl group"
+            className={`flex flex-col items-center justify-center ${buttonSize} rounded-xl group`}
             onClick={() => onSelectCategory("")}
           >
-            <span className="text-4xl mb-3 group-hover:scale-110 transition-transform">🛒</span>
+            <span className={`${iconSize} mb-3 group-hover:scale-110 transition-transform`}>🛒</span>
             <span className="text-base font-semibold group-hover:text-primary-foreground">All Products</span>
           </Button>
           
-          {categories.map((category) => (
+          {sortedCategories.map((category) => (
             <Button
               key={category.id}
               variant={selectedCategory === category.id ? "default" : "outline"}
-              className="flex flex-col items-center justify-center w-32 h-40 rounded-xl group"
+              className={`flex flex-col items-center justify-center ${buttonSize} rounded-xl group`}
               onClick={() => onSelectCategory(category.id)}
             >
-              <span className="text-4xl mb-3 group-hover:scale-110 transition-transform">
+              <span className={`${iconSize} mb-3 group-hover:scale-110 transition-transform`}>
                 {category.icon}
               </span>
               <span className="text-base font-semibold group-hover:text-primary-foreground whitespace-normal text-center">
