@@ -76,19 +76,106 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
+  /* Card styles with enhanced visuals */
   .product-card {
     @apply bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
   
+  /* Button hover effects */
   .btn-hover {
     @apply transition-all duration-200 hover:scale-105;
   }
   
+  /* Dashboard card with improved styling */
   .dashboard-card {
     @apply border bg-card shadow-sm p-5 rounded-xl;
   }
   
+  /* Section animations */
   .section-animate {
     @apply animate-fade-in;
+  }
+  
+  /* Glass effect for cards and modals */
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-bold;
+  }
+  
+  /* Enhanced buttons with gradient */
+  .btn-gradient {
+    @apply bg-gradient-to-r from-primary to-secondary text-white font-medium transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  /* Soft shadow for subtle depth */
+  .soft-shadow {
+    @apply shadow-[0_8px_30px_rgb(0,0,0,0.05)];
+  }
+  
+  /* Fancy border gradient */
+  .border-gradient {
+    @apply relative before:absolute before:inset-0 before:p-[1px] before:rounded-xl before:bg-gradient-to-r before:from-primary/50 before:to-secondary/50 before:-z-10;
+  }
+}
+
+/* Enhanced keyframes for more animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes slide-up-fade {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Additional animation utilities */
+@layer utilities {
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  
+  .animate-pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up-fade 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-in-right {
+    animation: slide-in-right 0.5s ease-out forwards;
+  }
+  
+  .animate-rotate-slow {
+    animation: rotate-slow 12s linear infinite;
+  }
+  
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
   }
 }
