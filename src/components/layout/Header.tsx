@@ -25,6 +25,8 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   
+  const isOwner = currentUser?.role === "owner";
+  
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -55,6 +57,16 @@ const Header = () => {
     return false;
   };
 
+  // Redirect store owners to dashboard if they're trying to access shopper pages
+  useEffect(() => {
+    if (isOwner && 
+        (location.pathname === "/shop" || 
+         location.pathname === "/cart" || 
+         location.pathname === "/recipes")) {
+      navigate("/dashboard");
+    }
+  }, [location.pathname, isOwner, navigate]);
+
   return (
     <header 
       className={`sticky top-0 z-50 w-full ${
@@ -72,23 +84,36 @@ const Header = () => {
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <Link 
-            to="/" 
-            className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive("/") ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            Home
-          </Link>
-          <Link 
-            to="/shop" 
-            className={`text-sm font-medium transition-colors hover:text-primary ${
-              isActive("/shop") ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            Shop
-          </Link>
-          {currentUser?.role === "owner" && (
+          {!isOwner && (
+            <>
+              <Link 
+                to="/" 
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Home
+              </Link>
+              <Link 
+                to="/shop" 
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/shop") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Shop
+              </Link>
+              <Link 
+                to="/recipes" 
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/recipes") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Recipes
+              </Link>
+            </>
+          )}
+          
+          {isOwner && (
             <Link 
               to="/dashboard" 
               className={`text-sm font-medium transition-colors hover:text-primary ${
@@ -102,30 +127,34 @@ const Header = () => {
         
         {/* Actions */}
         <div className="flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="hidden sm:flex"
-            onClick={() => navigate("/search")}
-          >
-            <Search size={20} />
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="relative" 
-            onClick={() => navigate("/cart")}
-          >
-            <ShoppingCart size={20} />
-            {totalItems > 0 && (
-              <Badge 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-secondary text-white"
+          {!isOwner && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hidden sm:flex"
+                onClick={() => navigate("/search")}
               >
-                {totalItems}
-              </Badge>
-            )}
-          </Button>
+                <Search size={20} />
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="relative" 
+                onClick={() => navigate("/cart")}
+              >
+                <ShoppingCart size={20} />
+                {totalItems > 0 && (
+                  <Badge 
+                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-secondary text-white"
+                  >
+                    {totalItems}
+                  </Badge>
+                )}
+              </Button>
+            </>
+          )}
           
           {currentUser ? (
             <DropdownMenu>
@@ -144,7 +173,7 @@ const Header = () => {
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  {currentUser.role === "owner" && (
+                  {isOwner && (
                     <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                       <span>Dashboard</span>
                     </DropdownMenuItem>
@@ -183,28 +212,40 @@ const Header = () => {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in">
           <div className="container px-4 py-3 space-y-3">
-            <Link 
-              to="/"
-              className="block py-2 text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link 
-              to="/shop"
-              className="block py-2 text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Shop
-            </Link>
-            <Link 
-              to="/search"
-              className="block py-2 text-base font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Search
-            </Link>
-            {currentUser?.role === "owner" && (
+            {!isOwner && (
+              <>
+                <Link 
+                  to="/"
+                  className="block py-2 text-base font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link 
+                  to="/shop"
+                  className="block py-2 text-base font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Shop
+                </Link>
+                <Link 
+                  to="/search"
+                  className="block py-2 text-base font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Search
+                </Link>
+                <Link 
+                  to="/recipes"
+                  className="block py-2 text-base font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Recipes
+                </Link>
+              </>
+            )}
+            
+            {isOwner && (
               <Link 
                 to="/dashboard"
                 className="block py-2 text-base font-medium"
@@ -213,6 +254,7 @@ const Header = () => {
                 Dashboard
               </Link>
             )}
+            
             {!currentUser && (
               <Button 
                 variant="default" 
