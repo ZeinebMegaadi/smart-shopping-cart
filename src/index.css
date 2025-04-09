@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 180 5% 98%;
+    --background: 210 40% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -17,7 +17,7 @@
     --primary: 184 86% 39%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 0 80% 71%;
+    --secondary: 262 82% 66%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 210 40% 96.1%;
@@ -49,7 +49,7 @@
     --primary: 184 86% 39%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 0 80% 71%;
+    --secondary: 262 82% 66%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
     --muted: 217.2 32.6% 17.5%;
@@ -76,19 +76,19 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* Card styles with enhanced visuals */
+  /* Futuristic card styles */
   .product-card {
-    @apply bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply bg-white rounded-xl shadow-md transition-all duration-300 hover:shadow-lg border border-transparent hover:border-primary/20 hover:-translate-y-1;
   }
   
-  /* Button hover effects */
+  /* Enhanced button hover effects */
   .btn-hover {
-    @apply transition-all duration-200 hover:scale-105;
+    @apply transition-all duration-200 hover:scale-105 hover:shadow-[0_0_15px_rgba(13,180,185,0.5)];
   }
   
   /* Dashboard card with improved styling */
   .dashboard-card {
-    @apply border bg-card shadow-sm p-5 rounded-xl;
+    @apply border bg-card shadow-sm p-5 rounded-xl backdrop-blur-sm;
   }
   
   /* Section animations */
@@ -96,7 +96,7 @@
     @apply animate-fade-in;
   }
   
-  /* Glass effect for cards and modals */
+  /* Futuristic glass effect */
   .glass-effect {
     @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
   }
@@ -106,7 +106,7 @@
     @apply bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-bold;
   }
   
-  /* Enhanced buttons with gradient */
+  /* Modern futuristic buttons */
   .btn-gradient {
     @apply bg-gradient-to-r from-primary to-secondary text-white font-medium transition-all duration-300 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98];
   }
@@ -119,6 +119,22 @@
   /* Fancy border gradient */
   .border-gradient {
     @apply relative before:absolute before:inset-0 before:p-[1px] before:rounded-xl before:bg-gradient-to-r before:from-primary/50 before:to-secondary/50 before:-z-10;
+  }
+  
+  /* Futuristic shimmer effect */
+  .shimmer {
+    @apply bg-gradient-to-r from-transparent via-white/20 to-transparent bg-[length:200%_100%] animate-shimmer;
+  }
+  
+  /* Glowing effect for interactive elements */
+  .glow-effect {
+    @apply hover:animate-glow transition-all duration-300;
+  }
+  
+  /* Tech pattern background */
+  .tech-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(13, 180, 185, 0.15) 2px, transparent 0);
+    background-size: 30px 30px;
   }
 }
 
@@ -177,5 +193,9 @@
   
   .hover-lift {
     @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg;
+  }
+  
+  .tech-bg {
+    @apply bg-gradient-to-b from-background to-background/80 tech-pattern;
   }
 }

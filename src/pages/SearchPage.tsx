@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { products } from "@/services/mockData";
 import ProductCard from "@/components/shop/ProductCard";
 import { Input } from "@/components/ui/input";
-import { Search as SearchIcon, FilterX } from "lucide-react";
+import { Search as SearchIcon, FilterX, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const SearchPage = () => {
@@ -25,7 +25,8 @@ const SearchPage = () => {
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.subcategory.toLowerCase().includes(searchTerm.toLowerCase())
+        product.subcategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.barcodeId.includes(searchTerm)
     );
     
     setSearchResults(filteredProducts);
@@ -33,17 +34,17 @@ const SearchPage = () => {
   
   return (
     <div className="container mx-auto px-4 py-12">
-      <div className={`transition-all duration-500 transform ${isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-        <h1 className="text-3xl font-bold mb-8 gradient-text text-center md:text-left">Search Products</h1>
+      <div className={`transition-all duration-700 transform ${isAnimated ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+        <h1 className="text-4xl font-bold mb-8 gradient-text text-center md:text-left">Search Products</h1>
         
         <div className="max-w-2xl mx-auto mb-10">
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-md group-hover:blur transition-all duration-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl blur-md group-hover:blur-lg transition-all duration-300"></div>
             <div className="relative bg-white rounded-xl shadow-sm">
-              <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-primary" />
               <Input
                 type="search"
-                placeholder="Search for products..."
+                placeholder="Search by name, barcode or category..."
                 className="pl-12 py-6 text-lg rounded-xl border-none focus:ring-2 focus:ring-primary/50 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -53,10 +54,10 @@ const SearchPage = () => {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 hover:bg-transparent"
                   onClick={() => setSearchTerm("")}
                 >
-                  <FilterX className="h-4 w-4" />
+                  <FilterX className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
                 </Button>
               )}
             </div>
@@ -83,7 +84,7 @@ const SearchPage = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16 bg-white rounded-xl shadow-sm animate-slide-up">
+          <div className="text-center py-16 bg-white/50 backdrop-blur-sm rounded-xl shadow-sm animate-fade-in border border-primary/10">
             <div className="mx-auto w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-6">
               <SearchIcon size={32} className="text-muted-foreground" />
             </div>
@@ -94,8 +95,9 @@ const SearchPage = () => {
             <Button 
               variant="outline"
               onClick={() => setSearchTerm("")}
-              className="transition-all hover:shadow-md"
+              className="transition-all hover:shadow-md hover:border-primary/30 glow-effect"
             >
+              <Sparkles size={16} className="mr-2" />
               Clear Search
             </Button>
           </div>

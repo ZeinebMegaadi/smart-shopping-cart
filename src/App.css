@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -12,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(13, 180, 185, 0.6));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(139, 92, 246, 0.6));
 }
 
 @keyframes logo-spin {
@@ -39,4 +40,40 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Futuristic UI elements */
+.futuristic-border {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.futuristic-border::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #0DB4B9, #8B5CF6, #FFC145, #0DB4B9);
+  z-index: -1;
+  border-radius: 0.85rem;
+  background-size: 400% 400%;
+  animation: gradient 6s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.tech-dots {
+  background-size: 20px 20px;
+  background-image: radial-gradient(circle at 1px 1px, rgba(13, 180, 185, 0.15) 1px, transparent 0);
+}
+
+.neo-glow {
+  box-shadow: 0 0 15px rgba(13, 180, 185, 0.3);
 }
