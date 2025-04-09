@@ -81,11 +81,8 @@ const DashboardPage = () => {
         
         <TabsContent value="analytics" className="animate-fade-in">
           <div className="dashboard-card hover-lift glass-effect border-gradient">
-            <h2 className="text-2xl font-bold mb-4">Store Analytics</h2>
-            <div className="h-[400px] flex items-center justify-center">
-              <BarChart3 className="h-16 w-16 text-muted-foreground animate-float" />
-              <p className="text-muted-foreground">Analytics dashboard coming soon.</p>
-            </div>
+            <h2 className="text-2xl font-bold mb-4">Advanced Analytics</h2>
+            <DashboardStats />
           </div>
         </TabsContent>
         

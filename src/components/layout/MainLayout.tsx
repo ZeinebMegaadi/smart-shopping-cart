@@ -25,7 +25,7 @@ const MainLayout = () => {
       <Header />
       
       <main className="flex-grow overflow-hidden relative z-10">
-        <div className="animate-fade-in">
+        <div className="page-transition animate-fade-in">
           <Outlet />
         </div>
       </main>
