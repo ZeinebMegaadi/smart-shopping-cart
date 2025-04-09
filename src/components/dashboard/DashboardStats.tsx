@@ -8,6 +8,18 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { CalendarDays, DollarSign, TrendingUp, Users } from "lucide-react";
 
+// Define interfaces for analytics data
+interface CategoryPrice {
+  total: number;
+  count: number;
+}
+
+interface SalesData {
+  month: string;
+  total: number;
+  projected?: boolean; // Make projected optional
+}
+
 // Calculate additional analytics
 const calculateAnalytics = () => {
   // Total inventory value
@@ -38,7 +50,7 @@ const calculateAnalytics = () => {
     .map(item => item.category);
     
   // Average price per category
-  const categoryPrices = products.reduce((acc, product) => {
+  const categoryPrices = products.reduce((acc: Record<string, CategoryPrice>, product) => {
     if (!acc[product.category]) {
       acc[product.category] = { total: 0, count: 0 };
     }
@@ -69,17 +81,17 @@ const analytics = calculateAnalytics();
 const COLORS = ['#0DB4B9', '#8B5CF6', '#FFC145', '#FF6B6B', '#36D399', '#8884d8', '#82ca9d', '#ffc658'];
 
 // Function to format currency in TND
-const formatTND = (value) => {
+const formatTND = (value: number): string => {
   return `${value.toFixed(2)} TND`;
 };
 
-const formatPercentage = (value) => {
+const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
 const DashboardStats = () => {
   // Enhanced sales data with projections
-  const enhancedSales = [...sales];
+  const enhancedSales: SalesData[] = [...sales];
   if (sales.length > 0) {
     const lastMonth = sales[sales.length - 1];
     const avgGrowth = sales.length > 1 
@@ -195,7 +207,7 @@ const DashboardStats = () => {
                   <XAxis dataKey="month" />
                   <YAxis tickFormatter={(value) => `${value} TND`} />
                   <Tooltip 
-                    formatter={(value) => [`${value.toFixed(2)} TND`, 'Revenue']}
+                    formatter={(value: number) => [`${value.toFixed(2)} TND`, 'Revenue']}
                   />
                   <Legend />
                   <Line 
@@ -247,7 +259,7 @@ const DashboardStats = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => [`${value.toFixed(2)} TND`, 'Sales']} />
+                  <Tooltip formatter={(value: number) => [`${value.toFixed(2)} TND`, 'Sales']} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -267,7 +279,7 @@ const DashboardStats = () => {
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value) => [`${value} visitors`, 'Traffic']}
+                    formatter={(value: number) => [`${value} visitors`, 'Traffic']}
                     labelFormatter={(label) => `Month: ${label}`}
                   />
                   <Legend />
@@ -299,7 +311,7 @@ const DashboardStats = () => {
                     tick={{ fontSize: 12 }}
                   />
                   <Tooltip 
-                    formatter={(value) => [`${value} units`, 'Sales']}
+                    formatter={(value: number) => [`${value} units`, 'Sales']}
                   />
                   <Bar dataKey="units" fill="#FF6B6B" radius={[0, 4, 4, 0]}>
                     {bestSellers.map((entry, index) => (
