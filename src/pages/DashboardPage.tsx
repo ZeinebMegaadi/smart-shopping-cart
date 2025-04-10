@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import InventoryTable from "@/components/dashboard/InventoryTable";
+import UserManagement from "@/components/dashboard/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Package2, Activity, Grid2X2 } from "lucide-react";
+import { BarChart3, Package2, Activity, Grid2X2, Users } from "lucide-react";
 
 const DashboardPage = () => {
   const { currentUser } = useAuth();
@@ -52,12 +53,18 @@ const DashboardPage = () => {
           >
             <Package2 size={18} />
           </button>
+          <button 
+            className={`p-2 rounded-full transition-all ${activeTab === 'users' ? 'bg-primary text-white' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <Users size={18} />
+          </button>
         </div>
       </div>
       
       <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-8">
         <div className="hidden">
-          <TabsList className="grid grid-cols-3 w-[500px]">
+          <TabsList className="grid grid-cols-4 w-[600px]">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <Grid2X2 className="h-4 w-4" />
               <span>Overview</span>
@@ -69,6 +76,10 @@ const DashboardPage = () => {
             <TabsTrigger value="inventory" className="flex items-center gap-2">
               <Package2 className="h-4 w-4" />
               <span>Inventory</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Users</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -89,6 +100,12 @@ const DashboardPage = () => {
         <TabsContent value="inventory" className="animate-fade-in">
           <div className="dashboard-card hover-lift glass-effect border-gradient">
             <InventoryTable />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="users" className="animate-fade-in">
+          <div className="dashboard-card hover-lift glass-effect border-gradient">
+            <UserManagement />
           </div>
         </TabsContent>
       </Tabs>
