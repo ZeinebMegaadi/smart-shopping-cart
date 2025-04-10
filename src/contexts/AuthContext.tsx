@@ -91,11 +91,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Auto login the new user
     const newUser = {
-      id: `user_${Date.now()}`,
+      id: `shopper_${Date.now()}`,
       email,
       name,
       password,
-      role: 'shopper' as const
+      role: 'shopper' as const,
+      rfidCardId: `RFID-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+      shoppingList: []
     };
     
     setCurrentUser(newUser);

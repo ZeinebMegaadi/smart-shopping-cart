@@ -1,4 +1,3 @@
-
 // Mock data for the Smart Shopping Cart application
 
 export interface Product {
@@ -15,12 +14,37 @@ export interface Product {
   popular?: boolean;
 }
 
-export interface User {
+// Base user interface with common properties
+export interface BaseUser {
   id: string;
   email: string;
   name: string;
-  role: 'shopper' | 'owner';
   password: string; // In a real app, this would be hashed
+}
+
+// Owner-specific interface
+export interface Owner extends BaseUser {
+  role: 'owner';
+  storeId: string; // Reference to managed store
+}
+
+// Shopper-specific interface
+export interface Shopper extends BaseUser {
+  role: 'shopper';
+  rfidCardId: string; // Unique RFID card ID for physical store identification
+  shoppingList: ShoppingListItem[]; // Current shopping list items
+}
+
+// Combined type for working with the existing code
+export type User = Owner | Shopper;
+
+export interface ShoppingListItem {
+  id: string;
+  productId: string;
+  name: string;
+  aisle: string;
+  checked: boolean;
+  addedAt: string; // ISO date string
 }
 
 export interface CartItem {
@@ -272,23 +296,110 @@ export const products: Product[] = [
   },
 ];
 
-// Mock users
-export const users: User[] = [
+// Mock owners (separate from shoppers)
+export const owners: Owner[] = [
   {
-    id: '1',
-    email: 'shopper@example.com',
-    name: 'Sam Shopper',
-    role: 'shopper',
-    password: 'password123'
-  },
-  {
-    id: '2',
+    id: 'owner_1',
     email: 'owner@example.com',
     name: 'Olivia Owner',
+    password: 'password123',
     role: 'owner',
-    password: 'password123'
+    storeId: 'store_1'
+  },
+  {
+    id: 'owner_2',
+    email: 'admin@store.com',
+    name: 'Adam Admin',
+    password: 'password123',
+    role: 'owner',
+    storeId: 'store_1'
   }
 ];
+
+// Mock shoppers (separate from owners)
+export const shoppers: Shopper[] = [
+  {
+    id: 'shopper_1',
+    email: 'shopper@example.com',
+    name: 'Sam Shopper',
+    password: 'password123',
+    role: 'shopper',
+    rfidCardId: 'RFID-7890-1234',
+    shoppingList: [
+      { 
+        id: 'sl_1',
+        productId: '1',
+        name: 'Water bottle Sabrine 1.5L',
+        aisle: 'A2',
+        checked: true,
+        addedAt: '2023-04-09T14:30:00Z'
+      },
+      {
+        id: 'sl_2',
+        productId: '10',
+        name: 'Chocolate Maestro 8 pieces',
+        aisle: 'C5',
+        checked: false,
+        addedAt: '2023-04-09T14:35:00Z'
+      },
+      {
+        id: 'sl_3',
+        productId: '8',
+        name: 'Corn oil Cristal 0.9L',
+        aisle: 'B3',
+        checked: true,
+        addedAt: '2023-04-09T14:40:00Z'
+      }
+    ]
+  },
+  {
+    id: 'shopper_2',
+    email: 'maria@example.com',
+    name: 'Maria Customer',
+    password: 'password123',
+    role: 'shopper',
+    rfidCardId: 'RFID-2345-6789',
+    shoppingList: [
+      {
+        id: 'sl_4',
+        productId: '4',
+        name: 'Cake Flour Warda 1kg',
+        aisle: 'D1',
+        checked: false,
+        addedAt: '2023-04-09T15:10:00Z'
+      },
+      {
+        id: 'sl_5',
+        productId: '6',
+        name: 'Dry yeast',
+        aisle: 'D2',
+        checked: true,
+        addedAt: '2023-04-09T15:15:00Z'
+      }
+    ]
+  },
+  {
+    id: 'shopper_3',
+    email: 'alex@example.com',
+    name: 'Alex Thompson',
+    password: 'password123',
+    role: 'shopper',
+    rfidCardId: 'RFID-5678-9012',
+    shoppingList: [
+      {
+        id: 'sl_6',
+        productId: '7',
+        name: 'Salt 500g Le Flamant',
+        aisle: 'B4',
+        checked: false,
+        addedAt: '2023-04-09T16:20:00Z'
+      }
+    ]
+  }
+];
+
+// Combined users array for compatibility with existing code
+export const users: User[] = [...owners, ...shoppers];
 
 // Mock order/sales data for analytics
 export const sales = [
