@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -32,11 +33,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
       setCurrentUser(currentSession?.user ?? null);
-      setIsLoading(false);
-
+      
       if (currentSession?.user) {
         await checkUserRole(currentSession.user.id);
       }
+      
+      setIsLoading(false);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -60,22 +62,55 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const checkUserRole = async (userId: string) => {
-    // Check if the user is an owner
-    const { data: ownerData } = await supabase
-      .from('owners')
-      .select('id')
-      .eq('id', userId)
-      .single();
+    try {
+      // First check if the user is an owner
+      const { data: ownerData, error: ownerError } = await supabase
+        .from('owners')
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-    const { data: shopperData } = await supabase
-      .from('shoppers')
-      .select('id')
-      .eq('id', userId)
-      .single();
+      if (ownerError && ownerError.code !== 'PGRST116') {
+        console.error("Error checking owner status:", ownerError);
+      }
 
-    if (ownerData) {
-      setUserRole('owner');
-    } else if (shopperData) {
+      if (ownerData) {
+        setUserRole('owner');
+        return;
+      }
+
+      // If not an owner, check if they're a shopper
+      const { data: shopperData, error: shopperError } = await supabase
+        .from('shoppers')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (shopperError && shopperError.code !== 'PGRST116') {
+        console.error("Error checking shopper status:", shopperError);
+      }
+
+      if (shopperData) {
+        setUserRole('shopper');
+        return;
+      }
+
+      // If not found in either table, default to shopper
+      console.log("User not found in either table, defaulting to shopper role");
+      setUserRole('shopper');
+      
+      // Automatically insert the user into the shoppers table
+      const { error: insertError } = await supabase
+        .from('shoppers')
+        .insert([{ id: userId, email: currentUser?.email || '' }]);
+      
+      if (insertError) {
+        console.error("Error adding user to shoppers table:", insertError);
+      }
+      
+    } catch (error) {
+      console.error("Error in checkUserRole:", error);
+      // Default to shopper role on error
       setUserRole('shopper');
     }
   };

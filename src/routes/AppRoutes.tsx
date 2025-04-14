@@ -13,23 +13,24 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
 const AppRoutes = () => {
-  const { currentUser, userRole } = useAuth();
+  const { currentUser, userRole, isLoading } = useAuth();
   const location = useLocation();
 
   // Handle route redirection based on user role
   useEffect(() => {
-    if (currentUser && userRole) {
+    if (!isLoading && currentUser && userRole) {
       // After login, direct users based on their role
       if (location.pathname === "/auth" || location.pathname === "/") {
         if (userRole === "owner") {
-          // Use window.location to avoid React Router for this initial redirect
+          // Navigate owners to dashboard
           window.location.href = "/dashboard";
-        } else {
+        } else if (userRole === "shopper") {
+          // Navigate shoppers to shop
           window.location.href = "/shop";
         }
       }
     }
-  }, [currentUser, userRole, location]);
+  }, [currentUser, userRole, location.pathname, isLoading]);
 
   return (
     <Routes>
@@ -38,10 +39,20 @@ const AppRoutes = () => {
         <Route path="shop" element={<ShopPage />} />
         <Route path="cart" element={<CartPage />} />
         <Route path="search" element={<SearchPage />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route 
+          path="dashboard" 
+          element={
+            currentUser ? 
+              userRole === "owner" ? <DashboardPage /> : <Navigate to="/shop" />
+              : <Navigate to="/auth" />
+          } 
+        />
         <Route path="recipes" element={<RecipesPage />} />
       </Route>
-      <Route path="/auth" element={<AuthPage />} />
+      <Route 
+        path="/auth" 
+        element={currentUser ? <Navigate to={userRole === "owner" ? "/dashboard" : "/shop"} /> : <AuthPage />} 
+      />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
