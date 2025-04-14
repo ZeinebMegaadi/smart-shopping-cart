@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -136,19 +135,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
+    setIsLoading(true);
     try {
-      await supabase.auth.signOut();
+      // Clear local state first
+      setUserRole(null);
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
+      
+      // Force clear any user/session data (redundant but ensures UI updates)
+      setCurrentUser(null);
+      setSession(null);
+      
       toast({
         title: "Logged out",
         description: "You have been logged out successfully",
       });
-      // Navigation will be handled in the components that use this context
-    } catch (error) {
+      
+      // Force browser reload to clear any lingering state
+      window.location.href = "/";
+    } catch (error: any) {
       toast({
         title: "Logout failed",
-        description: "An error occurred while logging out",
+        description: error.message || "An error occurred while logging out",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
