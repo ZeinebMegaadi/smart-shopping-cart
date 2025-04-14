@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -28,7 +27,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up initial session and auth state listener
     const fetchSession = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       setSession(currentSession);
@@ -43,6 +41,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change event:", event);
         setSession(session);
         setCurrentUser(session?.user ?? null);
         
@@ -63,7 +62,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const checkUserRole = async (userId: string) => {
     try {
-      // First check if the user is an owner
       const { data: ownerData, error: ownerError } = await supabase
         .from('owners')
         .select('id')
@@ -79,7 +77,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      // If not an owner, check if they're a shopper
       const { data: shopperData, error: shopperError } = await supabase
         .from('shoppers')
         .select('id')
@@ -95,11 +92,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      // If not found in either table, default to shopper
       console.log("User not found in either table, defaulting to shopper role");
       setUserRole('shopper');
       
-      // Automatically insert the user into the shoppers table
       const { error: insertError } = await supabase
         .from('shoppers')
         .insert([{ id: userId, email: currentUser?.email || '' }]);
@@ -110,7 +105,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
     } catch (error) {
       console.error("Error in checkUserRole:", error);
-      // Default to shopper role on error
       setUserRole('shopper');
     }
   };
@@ -172,31 +166,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async () => {
     setIsLoading(true);
     try {
-      // Clear local state first
+      console.log("Logging out user");
+      
       setUserRole(null);
-      
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) throw error;
-      
-      // Force clear any user/session data (redundant but ensures UI updates)
       setCurrentUser(null);
       setSession(null);
+      
+      localStorage.removeItem('supabase.auth.token');
+      
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      
+      if (error) {
+        console.error("Logout error:", error);
+        throw error;
+      }
       
       toast({
         title: "Logged out",
         description: "You have been logged out successfully",
       });
       
-      // Force browser reload to clear any lingering state
-      window.location.href = "/";
+      window.location.href = "/auth";
     } catch (error: any) {
+      console.error("Logout failed:", error);
       toast({
         title: "Logout failed",
         description: error.message || "An error occurred while logging out",
         variant: "destructive"
       });
+      
+      try {
+        await supabase.auth.setSession({ access_token: '', refresh_token: '' });
+        window.location.href = "/auth";
+      } catch (fallbackError) {
+        console.error("Fallback logout failed:", fallbackError);
+      }
     } finally {
       setIsLoading(false);
     }
