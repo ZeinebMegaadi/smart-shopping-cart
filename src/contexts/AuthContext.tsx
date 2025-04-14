@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -17,13 +16,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<'owner' | 'shopper' | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Set up initial session and auth state listener
@@ -45,6 +47,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (session?.user) {
           await checkUserRole(session.user.id);
+        } else {
+          setUserRole(null);
         }
       }
     );
@@ -72,10 +76,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (ownerData) {
       setUserRole('owner');
-      navigate('/dashboard');
     } else if (shopperData) {
       setUserRole('shopper');
-      navigate('/shop');
     }
   };
 
@@ -140,7 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         title: "Logged out",
         description: "You have been logged out successfully",
       });
-      navigate('/auth');
+      // Navigation will be handled in the components that use this context
     } catch (error) {
       toast({
         title: "Logout failed",

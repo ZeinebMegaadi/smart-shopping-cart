@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,14 +17,14 @@ import { Search, ShoppingCart, Menu, X, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Header = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, userRole } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   
-  const isOwner = currentUser?.role === "owner";
+  const isOwner = userRole === "owner";
   
   useEffect(() => {
     const handleScroll = () => {
@@ -42,13 +41,10 @@ const Header = () => {
   };
   
   const getUserInitials = () => {
-    if (!currentUser?.name) return "U";
-    return currentUser.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
+    if (!currentUser?.email) return "U";
+    return currentUser.email
+      .slice(0, 2)
+      .toUpperCase();
   };
   
   const isActive = (path: string) => {
