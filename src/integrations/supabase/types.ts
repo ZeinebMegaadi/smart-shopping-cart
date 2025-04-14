@@ -12,17 +12,14 @@ export type Database = {
       owners: {
         Row: {
           email: string
-          full_name: string
           id: string
         }
         Insert: {
           email: string
-          full_name: string
           id?: string
         }
         Update: {
           email?: string
-          full_name?: string
           id?: string
         }
         Relationships: []
@@ -54,6 +51,24 @@ export type Database = {
           Product?: string
           Stock?: number
           Subcategory?: string
+        }
+        Relationships: []
+      }
+      shoppers: {
+        Row: {
+          email: string
+          id: string
+          rfid_tag: string
+        }
+        Insert: {
+          email: string
+          id: string
+          rfid_tag?: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          rfid_tag?: string
         }
         Relationships: []
       }

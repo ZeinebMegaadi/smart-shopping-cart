@@ -5,21 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useNavigate } from "react-router-dom";
 
 interface SignupFormProps {
   onToggleForm: () => void;
 }
 
 const SignupForm = ({ onToggleForm }: SignupFormProps) => {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { signup } = useAuth();
-  const navigate = useNavigate();
+  const { signup, isLoading } = useAuth();
 
   const validatePasswords = () => {
     if (password !== confirmPassword) {
@@ -39,18 +35,7 @@ const SignupForm = ({ onToggleForm }: SignupFormProps) => {
     
     if (!validatePasswords()) return;
     
-    setIsLoading(true);
-    
-    try {
-      const success = await signup(email, name, password);
-      if (success) {
-        navigate("/");
-      }
-    } catch (error) {
-      console.error("Signup error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await signup(email, password);
   };
 
   return (
@@ -62,17 +47,6 @@ const SignupForm = ({ onToggleForm }: SignupFormProps) => {
       <CardContent>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
