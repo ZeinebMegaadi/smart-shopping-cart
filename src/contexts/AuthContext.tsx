@@ -33,13 +33,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Clear any existing session from localStorage to prevent caching issues
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         setSession(currentSession);
-        setCurrentUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
+          setCurrentUser(currentSession.user);
           await checkUserRole(currentSession.user.id);
+        } else {
+          setCurrentUser(null);
+          setUserRole(null);
         }
       } catch (error) {
         console.error("Error fetching session:", error);
+        setCurrentUser(null);
+        setUserRole(null);
       } finally {
         setIsLoading(false);
       }
@@ -49,12 +54,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       async (event, session) => {
         console.log("Auth state change event:", event);
         setSession(session);
-        setCurrentUser(session?.user ?? null);
         
         if (session?.user) {
+          setCurrentUser(session.user);
           await checkUserRole(session.user.id);
         } else {
+          setCurrentUser(null);
           setUserRole(null);
+          setIsLoading(false);
         }
       }
     );
@@ -67,7 +74,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const checkUserRole = async (userId: string) => {
+    setIsLoading(true);
     try {
+      // First check if the user exists in the owners table
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        throw new Error("No authenticated user found");
+      }
+      
+      // Check if user is in owners table
       const { data: ownerData, error: ownerError } = await supabase
         .from('owners')
         .select('id')
@@ -79,12 +94,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       if (ownerData) {
+        console.log("User is an owner");
         setUserRole('owner');
+        setIsLoading(false);
         return;
       }
 
+      // Check if user is in Shoppers table
       const { data: shopperData, error: shopperError } = await supabase
-        .from('Shoppers')  // Using correct capitalization from types
+        .from('Shoppers')
         .select('id')
         .eq('id', userId)
         .single();
@@ -94,16 +112,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       if (shopperData) {
+        console.log("User is a shopper");
         setUserRole('shopper');
+        setIsLoading(false);
         return;
       }
 
+      // If user is not in any role table, add them as a shopper by default
       console.log("User not found in either table, defaulting to shopper role");
       setUserRole('shopper');
       
       const { error: insertError } = await supabase
-        .from('Shoppers')  // Using correct capitalization from types
-        .insert([{ id: userId, email: currentUser?.email || '', rfid_tag: '' }]);
+        .from('Shoppers')
+        .insert([{ id: userId, email: userData.user.email || '', rfid_tag: '' }]);
       
       if (insertError) {
         console.error("Error adding user to shoppers table:", insertError);
@@ -112,6 +133,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error("Error in checkUserRole:", error);
       setUserRole('shopper');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -125,6 +148,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return false;
     }
     
+    setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -151,6 +175,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         variant: "destructive"
       });
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -186,18 +212,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       console.log("Logging out user");
       
-      setUserRole(null);
-      setCurrentUser(null);
-      setSession(null);
-      
-      localStorage.removeItem('supabase.auth.token');
-      
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error("Logout error:", error);
         throw error;
       }
+      
+      setUserRole(null);
+      setCurrentUser(null);
+      setSession(null);
       
       toast({
         title: "Logged out",
@@ -212,13 +236,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: error.message || "An error occurred while logging out",
         variant: "destructive"
       });
-      
-      try {
-        await supabase.auth.setSession({ access_token: '', refresh_token: '' });
-        window.location.href = "/auth";
-      } catch (fallbackError) {
-        console.error("Fallback logout failed:", fallbackError);
-      }
     } finally {
       setIsLoading(false);
     }

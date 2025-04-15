@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,7 +37,6 @@ const Header = () => {
   
   const handleLogout = async () => {
     await logout();
-    navigate("/auth");
   };
   
   const getUserInitials = () => {
@@ -54,7 +52,6 @@ const Header = () => {
     return false;
   };
 
-  // Redirect store owners to dashboard if they're trying to access shopper pages
   useEffect(() => {
     if (isOwner && 
         (location.pathname === "/shop" || 
@@ -71,7 +68,6 @@ const Header = () => {
       } transition-all duration-300`}
     >
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
         <Link to="/" className="flex items-center space-x-2">
           <div className="bg-gradient-to-r from-primary to-secondary rounded-full w-10 h-10 flex items-center justify-center text-white font-bold text-lg">
             SC
@@ -79,7 +75,6 @@ const Header = () => {
           <span className="text-xl font-bold hidden sm:inline-block">SmartCart</span>
         </Link>
         
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
           {!isOwner && (
             <>
@@ -122,7 +117,6 @@ const Header = () => {
           )}
         </nav>
         
-        {/* Actions */}
         <div className="flex items-center space-x-4">
           {!isOwner && (
             <>
@@ -155,7 +149,6 @@ const Header = () => {
           
           {currentUser ? (
             <div className="flex items-center space-x-2">
-              {/* Logout button - visible on all screen sizes */}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -207,7 +200,6 @@ const Header = () => {
             </Button>
           )}
           
-          {/* Mobile menu toggle */}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -219,7 +211,6 @@ const Header = () => {
         </div>
       </div>
       
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in">
           <div className="container px-4 py-3 space-y-3">
