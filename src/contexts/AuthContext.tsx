@@ -25,57 +25,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<'owner' | 'shopper' | null>(null);
+  const [roleCheckInProgress, setRoleCheckInProgress] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        // Clear any existing session from localStorage to prevent caching issues
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          setCurrentUser(currentSession.user);
-          await checkUserRole(currentSession.user.id);
-        } else {
-          setCurrentUser(null);
-          setUserRole(null);
-        }
-      } catch (error) {
-        console.error("Error fetching session:", error);
-        setCurrentUser(null);
-        setUserRole(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state change event:", event);
-        setSession(session);
-        
-        if (session?.user) {
-          setCurrentUser(session.user);
-          await checkUserRole(session.user.id);
-        } else {
-          setCurrentUser(null);
-          setUserRole(null);
-          setIsLoading(false);
-        }
-      }
-    );
-
-    fetchSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
+  // Check user role function that's debounced and prevents multiple simultaneous calls
   const checkUserRole = async (userId: string) => {
-    setIsLoading(true);
+    // Prevent multiple simultaneous role checks
+    if (roleCheckInProgress) return;
+    
     try {
+      setRoleCheckInProgress(true);
+      
       // First check if the user exists in the owners table
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
@@ -96,7 +56,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (ownerData) {
         console.log("User is an owner");
         setUserRole('owner');
-        setIsLoading(false);
         return;
       }
 
@@ -114,7 +73,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (shopperData) {
         console.log("User is a shopper");
         setUserRole('shopper');
-        setIsLoading(false);
         return;
       }
 
@@ -134,9 +92,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error in checkUserRole:", error);
       setUserRole('shopper');
     } finally {
+      setRoleCheckInProgress(false);
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    let isActive = true;
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Set up auth state change listener first
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, authSession) => {
+            console.log("Auth state change event:", event);
+            
+            if (isActive) {
+              setSession(authSession);
+              
+              if (authSession?.user) {
+                setCurrentUser(authSession.user);
+                // Use setTimeout to prevent rapid state updates
+                setTimeout(() => {
+                  if (isActive) {
+                    checkUserRole(authSession.user.id);
+                  }
+                }, 0);
+              } else {
+                setCurrentUser(null);
+                setUserRole(null);
+                setIsLoading(false);
+              }
+            }
+          }
+        );
+        
+        // Then check current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (isActive) {
+          setSession(currentSession);
+          
+          if (currentSession?.user) {
+            setCurrentUser(currentSession.user);
+            await checkUserRole(currentSession.user.id);
+          } else {
+            setCurrentUser(null);
+            setUserRole(null);
+            setIsLoading(false);
+          }
+        }
+        
+        return () => {
+          isActive = false;
+          subscription?.unsubscribe();
+        };
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        if (isActive) {
+          setCurrentUser(null);
+          setUserRole(null);
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    initializeAuth();
+    
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     if (!email || !password) {
@@ -174,9 +201,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: error.message || "Invalid credentials or connection issue",
         variant: "destructive"
       });
-      return false;
-    } finally {
       setIsLoading(false);
+      return false;
     }
   };
 
@@ -201,9 +227,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: error.message,
         variant: "destructive"
       });
-      return false;
-    } finally {
       setIsLoading(false);
+      return false;
     }
   };
 
@@ -227,8 +252,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Logged out",
         description: "You have been logged out successfully",
       });
-      
-      window.location.href = "/auth";
     } catch (error: any) {
       console.error("Logout failed:", error);
       toast({

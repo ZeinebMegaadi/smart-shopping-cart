@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +37,14 @@ const Header = () => {
   }, []);
   
   const handleLogout = async () => {
+    // Close mobile menu if open
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false);
+    }
+    
     await logout();
+    
+    // Let auth context handle redirect instead of doing it here
   };
   
   const getUserInitials = () => {
@@ -52,14 +60,8 @@ const Header = () => {
     return false;
   };
 
-  useEffect(() => {
-    if (isOwner && 
-        (location.pathname === "/shop" || 
-         location.pathname === "/cart" || 
-         location.pathname === "/recipes")) {
-      navigate("/dashboard");
-    }
-  }, [location.pathname, isOwner, navigate]);
+  // Don't use useEffect for navigation - this was causing infinite redirect loops
+  // We will rely on the Routes component to handle redirects based on user roles
 
   return (
     <header 

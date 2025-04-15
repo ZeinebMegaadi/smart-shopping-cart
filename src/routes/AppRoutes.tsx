@@ -29,59 +29,61 @@ const AppRoutes = () => {
       </div>
     );
   }
+  
+  // Debug user state
+  console.log("AppRoutes render - currentUser:", !!currentUser, "userRole:", userRole);
 
+  // Simple state-based routing without excessive redirects
   return (
     <Routes>
       <Route path="/" element={<MainLayout />}>
-        {/* Public routes */}
+        {/* Public route - Home */}
         <Route index element={
-          currentUser 
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <Navigate to="/shop" />)
-            : <HomePage />
+          !currentUser ? <HomePage /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          <Navigate to="/shop" replace />
         } />
         
-        {/* Protected shopper routes */}
+        {/* Shopper routes */}
         <Route path="shop" element={
-          currentUser
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <ShopPage />)
-            : <Navigate to="/auth" />
-        } />
-        <Route path="cart" element={
-          currentUser
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <CartPage />)
-            : <Navigate to="/auth" />
-        } />
-        <Route path="search" element={
-          currentUser
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <SearchPage />)
-            : <Navigate to="/auth" />
-        } />
-        <Route path="recipes" element={
-          currentUser
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <RecipesPage />)
-            : <Navigate to="/auth" />
+          !currentUser ? <Navigate to="/auth" replace /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          <ShopPage />
         } />
         
-        {/* Protected owner route */}
-        <Route 
-          path="dashboard" 
-          element={
-            currentUser
-              ? (userRole === "owner" ? <DashboardPage /> : <Navigate to="/shop" />)
-              : <Navigate to="/auth" />
-          } 
-        />
+        <Route path="cart" element={
+          !currentUser ? <Navigate to="/auth" replace /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          <CartPage />
+        } />
+        
+        <Route path="search" element={
+          !currentUser ? <Navigate to="/auth" replace /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          <SearchPage />
+        } />
+        
+        <Route path="recipes" element={
+          !currentUser ? <Navigate to="/auth" replace /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          <RecipesPage />
+        } />
+        
+        {/* Owner route */}
+        <Route path="dashboard" element={
+          !currentUser ? <Navigate to="/auth" replace /> :
+          userRole === "owner" ? <DashboardPage /> :
+          <Navigate to="/shop" replace />
+        } />
       </Route>
       
-      {/* Auth route - redirect if already logged in */}
-      <Route 
-        path="/auth" 
-        element={
-          currentUser 
-            ? (userRole === "owner" ? <Navigate to="/dashboard" /> : <Navigate to="/shop" />)
-            : <AuthPage />
-        } 
-      />
+      {/* Auth route */}
+      <Route path="/auth" element={
+        currentUser ? (
+          userRole === "owner" ? <Navigate to="/dashboard" replace /> : 
+          <Navigate to="/shop" replace />
+        ) : <AuthPage />
+      } />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
