@@ -84,7 +84,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       const { data: shopperData, error: shopperError } = await supabase
-        .from('shoppers')
+        .from('Shoppers')  // Using correct capitalization from types
         .select('id')
         .eq('id', userId)
         .single();
@@ -102,8 +102,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setUserRole('shopper');
       
       const { error: insertError } = await supabase
-        .from('shoppers')
-        .insert([{ id: userId, email: currentUser?.email || '' }]);
+        .from('Shoppers')  // Using correct capitalization from types
+        .insert([{ id: userId, email: currentUser?.email || '', rfid_tag: '' }]);
       
       if (insertError) {
         console.error("Error adding user to shoppers table:", insertError);
