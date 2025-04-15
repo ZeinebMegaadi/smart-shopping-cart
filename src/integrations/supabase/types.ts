@@ -54,24 +54,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shoppers: {
-        Row: {
-          email: string
-          id: string
-          rfid_tag: string
-        }
-        Insert: {
-          email: string
-          id: string
-          rfid_tag?: string
-        }
-        Update: {
-          email?: string
-          id?: string
-          rfid_tag?: string
-        }
-        Relationships: []
-      }
       Shoppers: {
         Row: {
           email: string
