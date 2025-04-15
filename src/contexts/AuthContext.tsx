@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -29,25 +28,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const authCheckComplete = useRef(false);
   const { toast } = useToast();
 
-  // Check user role function that's debounced and prevents multiple simultaneous calls
   const checkUserRole = async (userId: string) => {
-    // Prevent multiple simultaneous role checks
     if (roleCheckInProgress) return;
     
     try {
       setRoleCheckInProgress(true);
       
-      // First check if the user exists in the owners table
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) {
         throw new Error("No authenticated user found");
       }
       
-      // Check if user is in owners table
       const { data: ownerData, error: ownerError } = await supabase
         .from('owners')
         .select('id')
-        .eq('id', userId)
+        .eq('email', userData.user.email)
         .single();
 
       if (ownerError && ownerError.code !== 'PGRST116') {
@@ -60,7 +55,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      // Check if user is in Shoppers table
       const { data: shopperData, error: shopperError } = await supabase
         .from('Shoppers')
         .select('id')
@@ -77,7 +71,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
-      // If user is not in any role table, add them as a shopper by default
       console.log("User not found in either table, defaulting to shopper role");
       setUserRole('shopper');
       
@@ -107,7 +100,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         setIsLoading(true);
         
-        // Set up auth state change listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           (event, authSession) => {
             console.log("Auth state change event:", event);
@@ -118,7 +110,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             
             if (authSession?.user) {
               setCurrentUser(authSession.user);
-              // Use setTimeout to prevent rapid state updates
               if (!authCheckComplete.current) {
                 setTimeout(() => {
                   if (isActive) {
@@ -137,7 +128,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         authSubscription = subscription;
         
-        // Then check current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!isActive) return;
@@ -202,7 +192,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
         return true;
       } else {
-        // This shouldn't happen normally, but just in case
         throw new Error("No user data received");
       }
     } catch (error: any) {
@@ -229,41 +218,56 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) throw error;
 
-      // Check if the user was created successfully
       if (data?.user) {
-        // Check if the user already exists in the shoppers table
         try {
-          const { data: existingUser, error: fetchError } = await supabase
-            .from('Shoppers')
+          const { data: ownerData, error: ownerError } = await supabase
+            .from('owners')
             .select('id')
-            .eq('id', data.user.id)
+            .eq('email', data.user.email)
             .maybeSingle();
-
-          if (fetchError) {
-            console.error("Error checking if user exists in shoppers table:", fetchError);
-          }
-
-          // If the user doesn't exist in the shoppers table, add them
-          if (!existingUser) {
-            console.log("User not found in shoppers table, inserting new record");
-            const { error: insertError } = await supabase
-              .from('Shoppers')
-              .insert([{ 
-                id: data.user.id, 
-                email: data.user.email || '', 
-                rfid_tag: '' 
-              }]);
             
-            if (insertError) {
-              console.error("Error inserting user into shoppers table:", insertError);
-            } else {
-              console.log("Successfully added user to shoppers table");
-            }
+          if (ownerError) {
+            console.error("Error checking if email exists in owners table:", ownerError);
+          }
+          
+          if (ownerData) {
+            console.log("User email found in owners table, setting role to owner");
+            setUserRole('owner');
           } else {
-            console.log("User already exists in shoppers table");
+            const { data: existingUser, error: fetchError } = await supabase
+              .from('Shoppers')
+              .select('id')
+              .eq('id', data.user.id)
+              .maybeSingle();
+
+            if (fetchError) {
+              console.error("Error checking if user exists in shoppers table:", fetchError);
+            }
+
+            if (!existingUser) {
+              console.log("User not found in shoppers table, inserting new record");
+              const { error: insertError } = await supabase
+                .from('Shoppers')
+                .insert([{ 
+                  id: data.user.id, 
+                  email: data.user.email || '', 
+                  rfid_tag: '' 
+                }]);
+              
+              if (insertError) {
+                console.error("Error inserting user into shoppers table:", insertError);
+              } else {
+                console.log("Successfully added user to shoppers table");
+                setUserRole('shopper');
+              }
+            } else {
+              console.log("User already exists in shoppers table");
+              setUserRole('shopper');
+            }
           }
         } catch (error) {
-          console.error("Exception during shopper table check/insert:", error);
+          console.error("Exception during role determination:", error);
+          setUserRole('shopper');
         }
       }
 
