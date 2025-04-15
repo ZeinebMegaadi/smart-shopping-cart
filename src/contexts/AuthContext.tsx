@@ -28,15 +28,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     const fetchSession = async () => {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setCurrentUser(currentSession?.user ?? null);
-      
-      if (currentSession?.user) {
-        await checkUserRole(currentSession.user.id);
+      try {
+        // Clear any existing session from localStorage to prevent caching issues
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        setCurrentUser(currentSession?.user ?? null);
+        
+        if (currentSession?.user) {
+          await checkUserRole(currentSession.user.id);
+        }
+      } catch (error) {
+        console.error("Error fetching session:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -110,7 +115,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
+    if (!email || !password) {
+      toast({
+        title: "Missing credentials",
+        description: "Please provide both email and password",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -119,20 +132,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) throw error;
 
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${data.user?.email}!`,
-      });
-      return true;
+      if (data?.user) {
+        toast({
+          title: "Login successful",
+          description: `Welcome back, ${data.user?.email}!`,
+        });
+        return true;
+      } else {
+        // This shouldn't happen normally, but just in case
+        throw new Error("No user data received");
+      }
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: error.message,
+        description: error.message || "Invalid credentials or connection issue",
         variant: "destructive"
       });
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
