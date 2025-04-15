@@ -229,6 +229,44 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) throw error;
 
+      // Check if the user was created successfully
+      if (data?.user) {
+        // Check if the user already exists in the shoppers table
+        try {
+          const { data: existingUser, error: fetchError } = await supabase
+            .from('Shoppers')
+            .select('id')
+            .eq('id', data.user.id)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("Error checking if user exists in shoppers table:", fetchError);
+          }
+
+          // If the user doesn't exist in the shoppers table, add them
+          if (!existingUser) {
+            console.log("User not found in shoppers table, inserting new record");
+            const { error: insertError } = await supabase
+              .from('Shoppers')
+              .insert([{ 
+                id: data.user.id, 
+                email: data.user.email || '', 
+                rfid_tag: '' 
+              }]);
+            
+            if (insertError) {
+              console.error("Error inserting user into shoppers table:", insertError);
+            } else {
+              console.log("Successfully added user to shoppers table");
+            }
+          } else {
+            console.log("User already exists in shoppers table");
+          }
+        } catch (error) {
+          console.error("Exception during shopper table check/insert:", error);
+        }
+      }
+
       toast({
         title: "Sign up successful",
         description: "Your account has been created. Please confirm your email.",
