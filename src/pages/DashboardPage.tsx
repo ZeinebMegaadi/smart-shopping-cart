@@ -1,30 +1,19 @@
-
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import InventoryTable from "@/components/dashboard/InventoryTable";
 import UserManagement from "@/components/dashboard/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Package2, Activity, Grid2X2, Users } from "lucide-react";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 const DashboardPage = () => {
-  const { currentUser } = useAuth();
+  const { isAuthenticated, userRole } = useAuthStatus();
   const [activeTab, setActiveTab] = useState("overview");
   const [isVisible, setIsVisible] = useState(false);
   
   useEffect(() => {
     setTimeout(() => setIsVisible(true), 100);
   }, []);
-  
-  // Redirect if not logged in or not a store owner
-  if (!currentUser) {
-    return <Navigate to="/auth" />;
-  }
-  
-  if (currentUser.role !== "owner") {
-    return <Navigate to="/" />;
-  }
   
   return (
     <div className={`container mx-auto px-4 py-12 transition-all duration-700 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
@@ -110,7 +99,6 @@ const DashboardPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Decorative elements */}
       <div className="absolute top-1/4 right-10 w-20 h-20 border border-primary/20 rounded-full opacity-10 animate-rotate-slow hidden lg:block"></div>
       <div className="absolute bottom-20 left-10 w-32 h-32 border border-secondary/20 rounded-full opacity-5 animate-rotate-slow hidden lg:block" style={{ animationDirection: 'reverse' }}></div>
     </div>

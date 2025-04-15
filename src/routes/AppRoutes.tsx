@@ -1,5 +1,5 @@
 
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
 import NotFound from "@/pages/NotFound";
 import HomePage from "@/pages/HomePage";
@@ -9,20 +9,13 @@ import CartPage from "@/pages/CartPage";
 import SearchPage from "@/pages/SearchPage";
 import DashboardPage from "@/pages/DashboardPage";
 import RecipesPage from "@/pages/RecipesPage";
-import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 const AppRoutes = () => {
-  const { currentUser, userRole, isLoading } = useAuth();
-  const location = useLocation();
+  const { isAuthenticated, userRole, isLoading } = useAuthStatus();
   
-  // Debug user state - but don't log on every render to avoid console spam
-  useEffect(() => {
-    console.log("AppRoutes mounted - currentUser:", !!currentUser, "userRole:", userRole);
-  }, [currentUser?.id, userRole]);
-
-  // Show loading state while checking authentication and user role
+  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -36,57 +29,118 @@ const AppRoutes = () => {
     );
   }
   
-  // Simple state-based routing without excessive redirects
   return (
     <Routes>
       <Route path="/" element={<MainLayout />}>
-        {/* Public route - Home */}
-        <Route index element={
-          !currentUser ? <HomePage /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
-          <Navigate to="/shop" replace state={{ from: location }} />
-        } />
+        {/* Home route - redirect based on auth status and role */}
+        <Route 
+          index 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/shop" replace />
+              )
+            ) : (
+              <HomePage />
+            )
+          } 
+        />
         
-        {/* Shopper routes */}
-        <Route path="shop" element={
-          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
-          <ShopPage />
-        } />
+        {/* Shopper routes - protected */}
+        <Route 
+          path="shop" 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <ShopPage />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
         
-        <Route path="cart" element={
-          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
-          <CartPage />
-        } />
+        <Route 
+          path="cart" 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <CartPage />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
         
-        <Route path="search" element={
-          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
-          <SearchPage />
-        } />
+        <Route 
+          path="search" 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <SearchPage />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
         
-        <Route path="recipes" element={
-          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
-          <RecipesPage />
-        } />
+        <Route 
+          path="recipes" 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <RecipesPage />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
         
-        {/* Owner route */}
-        <Route path="dashboard" element={
-          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
-          userRole === "owner" ? <DashboardPage /> :
-          <Navigate to="/shop" replace state={{ from: location }} />
-        } />
+        {/* Owner route - protected */}
+        <Route 
+          path="dashboard" 
+          element={
+            isAuthenticated ? (
+              userRole === "owner" ? (
+                <DashboardPage />
+              ) : (
+                <Navigate to="/shop" replace />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          } 
+        />
       </Route>
       
       {/* Auth route */}
-      <Route path="/auth" element={
-        currentUser ? (
-          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> : 
-          <Navigate to="/shop" replace state={{ from: location }} />
-        ) : <AuthPage />
-      } />
+      <Route 
+        path="/auth" 
+        element={
+          isAuthenticated ? (
+            userRole === "owner" ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/shop" replace />
+            )
+          ) : (
+            <AuthPage />
+          )
+        } 
+      />
       
       <Route path="*" element={<NotFound />} />
     </Routes>

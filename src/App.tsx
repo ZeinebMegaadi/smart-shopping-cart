@@ -8,7 +8,15 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { CartProvider } from "./contexts/CartContext";
 import AppRoutes from "./routes/AppRoutes";
 
-const queryClient = new QueryClient();
+// Create a new query client instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -16,9 +24,9 @@ const App = () => (
       <AuthProvider>
         <CartProvider>
           <TooltipProvider>
+            <AppRoutes />
             <Toaster />
             <Sonner />
-            <AppRoutes />
           </TooltipProvider>
         </CartProvider>
       </AuthProvider>
