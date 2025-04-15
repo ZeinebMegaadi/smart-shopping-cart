@@ -11,10 +11,16 @@ import DashboardPage from "@/pages/DashboardPage";
 import RecipesPage from "@/pages/RecipesPage";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 const AppRoutes = () => {
   const { currentUser, userRole, isLoading } = useAuth();
   const location = useLocation();
+  
+  // Debug user state - but don't log on every render to avoid console spam
+  useEffect(() => {
+    console.log("AppRoutes mounted - currentUser:", !!currentUser, "userRole:", userRole);
+  }, [currentUser?.id, userRole]);
 
   // Show loading state while checking authentication and user role
   if (isLoading) {
@@ -30,9 +36,6 @@ const AppRoutes = () => {
     );
   }
   
-  // Debug user state
-  console.log("AppRoutes render - currentUser:", !!currentUser, "userRole:", userRole);
-
   // Simple state-based routing without excessive redirects
   return (
     <Routes>
@@ -40,48 +43,48 @@ const AppRoutes = () => {
         {/* Public route - Home */}
         <Route index element={
           !currentUser ? <HomePage /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
-          <Navigate to="/shop" replace />
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
+          <Navigate to="/shop" replace state={{ from: location }} />
         } />
         
         {/* Shopper routes */}
         <Route path="shop" element={
-          !currentUser ? <Navigate to="/auth" replace /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
           <ShopPage />
         } />
         
         <Route path="cart" element={
-          !currentUser ? <Navigate to="/auth" replace /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
           <CartPage />
         } />
         
         <Route path="search" element={
-          !currentUser ? <Navigate to="/auth" replace /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
           <SearchPage />
         } />
         
         <Route path="recipes" element={
-          !currentUser ? <Navigate to="/auth" replace /> :
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> :
+          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> :
           <RecipesPage />
         } />
         
         {/* Owner route */}
         <Route path="dashboard" element={
-          !currentUser ? <Navigate to="/auth" replace /> :
+          !currentUser ? <Navigate to="/auth" replace state={{ from: location }} /> :
           userRole === "owner" ? <DashboardPage /> :
-          <Navigate to="/shop" replace />
+          <Navigate to="/shop" replace state={{ from: location }} />
         } />
       </Route>
       
       {/* Auth route */}
       <Route path="/auth" element={
         currentUser ? (
-          userRole === "owner" ? <Navigate to="/dashboard" replace /> : 
-          <Navigate to="/shop" replace />
+          userRole === "owner" ? <Navigate to="/dashboard" replace state={{ from: location }} /> : 
+          <Navigate to="/shop" replace state={{ from: location }} />
         ) : <AuthPage />
       } />
       

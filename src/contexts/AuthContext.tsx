@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui/use-toast";
@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<'owner' | 'shopper' | null>(null);
   const [roleCheckInProgress, setRoleCheckInProgress] = useState(false);
+  const authCheckComplete = useRef(false);
   const { toast } = useToast();
 
   // Check user role function that's debounced and prevents multiple simultaneous calls
@@ -94,66 +95,71 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } finally {
       setRoleCheckInProgress(false);
       setIsLoading(false);
+      authCheckComplete.current = true;
     }
   };
 
   useEffect(() => {
     let isActive = true;
+    let authSubscription: { unsubscribe: () => void } | null = null;
+    
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
         
         // Set up auth state change listener first
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, authSession) => {
+          (event, authSession) => {
             console.log("Auth state change event:", event);
             
-            if (isActive) {
-              setSession(authSession);
-              
-              if (authSession?.user) {
-                setCurrentUser(authSession.user);
-                // Use setTimeout to prevent rapid state updates
+            if (!isActive) return;
+            
+            setSession(authSession);
+            
+            if (authSession?.user) {
+              setCurrentUser(authSession.user);
+              // Use setTimeout to prevent rapid state updates
+              if (!authCheckComplete.current) {
                 setTimeout(() => {
                   if (isActive) {
                     checkUserRole(authSession.user.id);
                   }
-                }, 0);
-              } else {
-                setCurrentUser(null);
-                setUserRole(null);
-                setIsLoading(false);
+                }, 50);
               }
+            } else {
+              setCurrentUser(null);
+              setUserRole(null);
+              setIsLoading(false);
+              authCheckComplete.current = true;
             }
           }
         );
         
+        authSubscription = subscription;
+        
         // Then check current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        if (isActive) {
-          setSession(currentSession);
-          
-          if (currentSession?.user) {
-            setCurrentUser(currentSession.user);
-            await checkUserRole(currentSession.user.id);
-          } else {
-            setCurrentUser(null);
-            setUserRole(null);
-            setIsLoading(false);
-          }
-        }
+        if (!isActive) return;
         
-        return () => {
-          isActive = false;
-          subscription?.unsubscribe();
-        };
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          setCurrentUser(currentSession.user);
+          await checkUserRole(currentSession.user.id);
+        } else {
+          setCurrentUser(null);
+          setUserRole(null);
+          setIsLoading(false);
+          authCheckComplete.current = true;
+        }
       } catch (error) {
         console.error("Error initializing auth:", error);
         if (isActive) {
           setCurrentUser(null);
           setUserRole(null);
           setIsLoading(false);
+          authCheckComplete.current = true;
         }
       }
     };
@@ -162,6 +168,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     return () => {
       isActive = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -176,6 +185,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
     
     setIsLoading(true);
+    authCheckComplete.current = false;
+    
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -208,6 +219,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signup = async (email: string, password: string) => {
     setIsLoading(true);
+    authCheckComplete.current = false;
+    
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -236,6 +249,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setIsLoading(true);
     try {
       console.log("Logging out user");
+      authCheckComplete.current = false;
       
       const { error } = await supabase.auth.signOut();
       
@@ -261,6 +275,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
     } finally {
       setIsLoading(false);
+      authCheckComplete.current = true;
     }
   };
 
