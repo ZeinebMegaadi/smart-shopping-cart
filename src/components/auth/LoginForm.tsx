@@ -90,11 +90,11 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
 
   const fillDemoCredentials = (type: 'shopper' | 'owner') => {
     if (type === 'shopper') {
-      setEmail('rouahabibi2000@gmail.com');
-      setPassword('password123');
+      setEmail('demo.shopper@example.com');
+      setPassword('shoppingdemo123');
     } else {
       setEmail('rouahabibi2000@gmail.com');
-      setPassword('password123');
+      setPassword('@Lolabunny 205');
     }
     setErrors({});
     setFormError(null);
@@ -180,11 +180,11 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Demo Account</span>
+              <span className="bg-background px-2 text-muted-foreground">Demo Accounts</span>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <Button 
               variant="outline" 
               type="button" 
@@ -192,18 +192,27 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
               className="border-primary/20 hover:border-primary"
             >
               <User className="mr-2 h-4 w-4" />
-              Use Demo Account
+              Shopper Demo
+            </Button>
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={() => fillDemoCredentials('owner')}
+              className="border-primary/20 hover:border-primary"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Owner Demo
             </Button>
           </div>
           
           <div className="text-center text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
-            <p><strong>Login:</strong> rouahabibi2000@gmail.com / password123</p>
-            <p className="text-xs italic mt-1">(Works for both shopper and owner roles)</p>
+            <p><strong>Shopper:</strong> demo.shopper@example.com / shoppingdemo123</p>
+            <p><strong>Owner:</strong> rouahabibi2000@gmail.com / @Lolabunny 205</p>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col">
-        <div className="text-sm text-center text-muted-foreground mt-4">
+      <CardFooter>
+        <div className="text-sm text-center w-full text-muted-foreground">
           Don't have an account?{" "}
           <Button
             variant="link"
