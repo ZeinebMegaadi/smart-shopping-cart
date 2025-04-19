@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, User, KeyRound } from "lucide-react";
 
 interface LoginFormProps {
   onToggleForm: () => void;
@@ -47,7 +46,6 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
     e.preventDefault();
     setFormError(null);
 
-    // Validate form before proceeding
     if (!validateForm()) {
       return;
     }
@@ -58,7 +56,6 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
       const success = await login(email, password);
       
       if (!success) {
-        // If login returns false but doesn't throw an error
         setFormError("Failed to sign in. Please check your credentials.");
       }
     } catch (error: any) {
@@ -76,22 +73,31 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
   };
 
   const handleInputChange = (field: 'email' | 'password', value: string) => {
-    // Clear errors when user starts typing
     if (errors[field]) {
       setErrors({...errors, [field]: undefined});
     }
     
-    // Clear form error when user makes any change
     if (formError) {
       setFormError(null);
     }
     
-    // Update field value
     if (field === 'email') {
       setEmail(value);
     } else {
       setPassword(value);
     }
+  };
+
+  const fillDemoCredentials = (type: 'shopper' | 'owner') => {
+    if (type === 'shopper') {
+      setEmail('shopper@example.com');
+      setPassword('password123');
+    } else {
+      setEmail('owner@example.com');
+      setPassword('password123');
+    }
+    setErrors({});
+    setFormError(null);
   };
 
   return (
@@ -113,16 +119,19 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
               <Label htmlFor="email" className={errors.email ? "text-destructive" : ""}>
                 Email
               </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className={errors.email ? "border-destructive" : ""}
-                disabled={isSubmitting}
-                autoComplete="email"
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
+                  disabled={isSubmitting}
+                  autoComplete="email"
+                />
+              </div>
               {errors.email && (
                 <p className="text-sm font-medium text-destructive">{errors.email}</p>
               )}
@@ -136,15 +145,18 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
                   Forgot password?
                 </a>
               </div>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                className={errors.password ? "border-destructive" : ""}
-                disabled={isSubmitting}
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  className={`pl-10 ${errors.password ? "border-destructive" : ""}`}
+                  disabled={isSubmitting}
+                  autoComplete="current-password"
+                />
+              </div>
               {errors.password && (
                 <p className="text-sm font-medium text-destructive">{errors.password}</p>
               )}
@@ -161,15 +173,45 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
             </Button>
           </div>
         </form>
+
+        <div className="mt-6 space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Demo Accounts</span>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={() => fillDemoCredentials('shopper')}
+              className="border-primary/20 hover:border-primary"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Shopper Demo
+            </Button>
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={() => fillDemoCredentials('owner')}
+              className="border-primary/20 hover:border-primary"
+            >
+              <User className="mr-2 h-4 w-4" />
+              Owner Demo
+            </Button>
+          </div>
+          
+          <div className="text-center text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
+            <p><strong>Shopper:</strong> shopper@example.com / password123</p>
+            <p><strong>Owner:</strong> owner@example.com / password123</p>
+          </div>
+        </div>
       </CardContent>
       <CardFooter className="flex flex-col">
-        <div className="text-sm text-center text-muted-foreground mt-2">
-          Demo credentials:
-          <br />
-          Shopper: shopper@example.com / password123
-          <br />
-          Store Owner: owner@example.com / password123
-        </div>
         <div className="text-sm text-center text-muted-foreground mt-4">
           Don't have an account?{" "}
           <Button
