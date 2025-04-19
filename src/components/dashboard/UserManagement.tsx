@@ -47,7 +47,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     fetchOwners();
   }, []);
   
-  // Filter shoppers based on search term
+  // Sorting and filtering methods
+  const handleSort = (field: "name" | "email" | "role" | "listCount") => {
+    const isAsc = sortField === field && sortDirection === "asc";
+    setSortField(field);
+    setSortDirection(isAsc ? "desc" : "asc");
+  };
+
+  const toggleExpandUser = (userId: string) => {
+    setExpandedUser(prevUser => prevUser === userId ? null : userId);
+  };
+  
+  // Filter and sort shoppers
   const filteredShoppers = shoppers
     .filter(shopper => 
       shopper.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -68,7 +79,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
-  // Filter owners based on search term
+  // Filter and sort owners
   const filteredOwners = owners
     .filter(owner => 
       owner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,7 +135,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">Status</TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("name")}>
+                    <TableHead 
+                      className="cursor-pointer" 
+                      onClick={() => handleSort("name")}
+                    >
                       <div className="flex items-center">
                         Name
                         {sortField === "name" && (
@@ -134,7 +148,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                         )}
                       </div>
                     </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("email")}>
+                    <TableHead 
+                      className="cursor-pointer" 
+                      onClick={() => handleSort("email")}
+                    >
                       <div className="flex items-center">
                         Email
                         {sortField === "email" && (
@@ -145,7 +162,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                       </div>
                     </TableHead>
                     <TableHead>RFID ID</TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("listCount")}>
+                    <TableHead 
+                      className="cursor-pointer" 
+                      onClick={() => handleSort("listCount")}
+                    >
                       <div className="flex items-center">
                         Items
                         {sortField === "listCount" && (
@@ -195,25 +215,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                             )}
                           </TableCell>
                           <TableCell>
-                            {hasShoppingList ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleExpandUser(shopper.id)}
-                                className="group-hover:bg-primary/10 group-hover:text-primary"
-                              >
-                                {expandedUser === shopper.id ? "Hide List" : "View List"}
-                                {expandedUser === shopper.id ? (
-                                  <ChevronUp className="ml-1 h-4 w-4" />
-                                ) : (
-                                  <ChevronDown className="ml-1 h-4 w-4" />
-                                )}
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" disabled>
-                                No List
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleExpandUser(shopper.id)}
+                              className="group-hover:bg-primary/10 group-hover:text-primary"
+                            >
+                              {expandedUser === shopper.id ? "Hide List" : "View List"}
+                              {expandedUser === shopper.id ? (
+                                <ChevronUp className="ml-1 h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="ml-1 h-4 w-4" />
+                              )}
+                            </Button>
                           </TableCell>
                         </TableRow>
                         
@@ -274,10 +288,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
               </Table>
             </CardContent>
           </Card>
-          
-          <div className="text-center text-xs text-muted-foreground mt-4">
-            Showing {filteredShoppers.length} of {shoppers.length} shoppers
-          </div>
         </TabsContent>
 
         <TabsContent value="owners" className="animate-fade-in">
@@ -287,7 +297,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">Status</TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("name")}>
+                    <TableHead 
+                      className="cursor-pointer" 
+                      onClick={() => handleSort("name")}
+                    >
                       <div className="flex items-center">
                         Name
                         {sortField === "name" && (
@@ -297,7 +310,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                         )}
                       </div>
                     </TableHead>
-                    <TableHead className="cursor-pointer" onClick={() => handleSort("email")}>
+                    <TableHead 
+                      className="cursor-pointer" 
+                      onClick={() => handleSort("email")}
+                    >
                       <div className="flex items-center">
                         Email
                         {sortField === "email" && (
@@ -345,10 +361,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
               </Table>
             </CardContent>
           </Card>
-          
-          <div className="text-center text-xs text-muted-foreground mt-4">
-            Showing {filteredOwners.length} of {owners.length} store owners
-          </div>
         </TabsContent>
       </Tabs>
     </div>

@@ -48,7 +48,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
           Price: updatedProduct.price,
           Stock: updatedProduct.quantityInStock
         })
-        .eq('Barcode ID', updatedProduct.barcodeId);
+        .eq('Barcode ID', Number(updatedProduct.barcodeId));
       
       if (error) throw error;
       
@@ -71,18 +71,18 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
   const handleDeleteProduct = async (productId: string) => {
     const productToDelete = products.find((p) => p.id === productId);
     
-    if (confirm(`Are you sure you want to delete ${productToDelete?.name}?`)) {
+    if (productToDelete && confirm(`Are you sure you want to delete ${productToDelete.name}?`)) {
       try {
         const { error } = await supabase
           .from('products')
           .delete()
-          .eq('Barcode ID', productToDelete?.barcodeId);
+          .eq('Barcode ID', Number(productToDelete.barcodeId));
         
         if (error) throw error;
         
         toast({
           title: "Product deleted",
-          description: `${productToDelete?.name} has been deleted.`,
+          description: `${productToDelete.name} has been deleted.`,
           variant: "destructive",
         });
       } catch (error) {
@@ -115,7 +115,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
         .from('products')
         .insert({
           Product: newProduct.name,
-          Barcode_ID: parseInt(newProduct.barcodeId.replace('B', '')),
+          Barcode_ID: Number(newProduct.barcodeId.replace('B', '')),
           Category: newProduct.category,
           Subcategory: newProduct.subcategory,
           Aisle: newProduct.aisle,
