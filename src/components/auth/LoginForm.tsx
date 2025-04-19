@@ -90,10 +90,10 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
 
   const fillDemoCredentials = (type: 'shopper' | 'owner') => {
     if (type === 'shopper') {
-      setEmail('shopper@example.com');
+      setEmail('rouahabibi2000@gmail.com');
       setPassword('password123');
     } else {
-      setEmail('owner@example.com');
+      setEmail('rouahabibi2000@gmail.com');
       setPassword('password123');
     }
     setErrors({});
@@ -180,11 +180,11 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Demo Accounts</span>
+              <span className="bg-background px-2 text-muted-foreground">Demo Account</span>
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <Button 
               variant="outline" 
               type="button" 
@@ -192,22 +192,13 @@ const LoginForm = ({ onToggleForm }: LoginFormProps) => {
               className="border-primary/20 hover:border-primary"
             >
               <User className="mr-2 h-4 w-4" />
-              Shopper Demo
-            </Button>
-            <Button 
-              variant="outline" 
-              type="button" 
-              onClick={() => fillDemoCredentials('owner')}
-              className="border-primary/20 hover:border-primary"
-            >
-              <User className="mr-2 h-4 w-4" />
-              Owner Demo
+              Use Demo Account
             </Button>
           </div>
           
           <div className="text-center text-xs text-muted-foreground p-2 bg-muted/50 rounded-md">
-            <p><strong>Shopper:</strong> shopper@example.com / password123</p>
-            <p><strong>Owner:</strong> owner@example.com / password123</p>
+            <p><strong>Login:</strong> rouahabibi2000@gmail.com / password123</p>
+            <p className="text-xs italic mt-1">(Works for both shopper and owner roles)</p>
           </div>
         </div>
       </CardContent>
