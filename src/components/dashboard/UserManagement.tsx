@@ -1,6 +1,5 @@
-
-import React, { useState } from "react";
-import { shoppers, owners } from "@/services/mockData";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Table, 
   TableBody, 
@@ -21,33 +20,32 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield } from "lucide-react";
 
-interface ShoppingListItem {
-  id: string;
-  productId: string;
-  name: string;
-  aisle: string;
-  checked: boolean;
+interface UserManagementProps {
+  initialShoppers?: any[];
 }
 
-const UserManagement = () => {
+const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] }) => {
+  const [shoppers, setShoppers] = useState(initialShoppers);
+  const [owners, setOwners] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"name" | "email" | "role" | "listCount">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [activeTab, setActiveTab] = useState<"shoppers" | "owners">("shoppers");
   
-  const toggleExpandUser = (userId: string) => {
-    setExpandedUser(expandedUser === userId ? null : userId);
-  };
-  
-  const handleSort = (field: "name" | "email" | "role" | "listCount") => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
+  // Update shoppers when initialShoppers change
+  useEffect(() => {
+    setShoppers(initialShoppers);
+  }, [initialShoppers]);
+
+  // Fetch owners on component mount
+  useEffect(() => {
+    const fetchOwners = async () => {
+      const { data, error } = await supabase.from('owners').select('*');
+      if (data) setOwners(data);
+    };
+    fetchOwners();
+  }, []);
   
   // Filter shoppers based on search term
   const filteredShoppers = shoppers

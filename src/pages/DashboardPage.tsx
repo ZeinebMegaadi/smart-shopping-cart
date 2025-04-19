@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import InventoryTable from "@/components/dashboard/InventoryTable";
 import UserManagement from "@/components/dashboard/UserManagement";
@@ -11,8 +12,104 @@ const DashboardPage = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isVisible, setIsVisible] = useState(false);
   
+  const [products, setProducts] = useState([]);
+  const [shoppers, setShoppers] = useState([]);
+  const [shoppingLists, setShoppingLists] = useState([]);
+  
   useEffect(() => {
     setTimeout(() => setIsVisible(true), 100);
+    
+    const productsChannel = supabase
+      .channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          console.log('Change received:', payload);
+          switch(payload.eventType) {
+            case 'INSERT':
+              setProducts(prev => [...prev, payload.new]);
+              break;
+            case 'UPDATE':
+              setProducts(prev => 
+                prev.map(item => 
+                  item.id === payload.old.id ? payload.new : item
+                )
+              );
+              break;
+            case 'DELETE':
+              setProducts(prev => 
+                prev.filter(item => item.id !== payload.old.id)
+              );
+              break;
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'Shoppers' },
+        (payload) => {
+          console.log('Shopper Change received:', payload);
+          switch(payload.eventType) {
+            case 'INSERT':
+              setShoppers(prev => [...prev, payload.new]);
+              break;
+            case 'UPDATE':
+              setShoppers(prev => 
+                prev.map(item => 
+                  item.id === payload.old.id ? payload.new : item
+                )
+              );
+              break;
+            case 'DELETE':
+              setShoppers(prev => 
+                prev.filter(item => item.id !== payload.old.id)
+              );
+              break;
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_list' },
+        (payload) => {
+          console.log('Shopping List Change received:', payload);
+          switch(payload.eventType) {
+            case 'INSERT':
+              setShoppingLists(prev => [...prev, payload.new]);
+              break;
+            case 'UPDATE':
+              setShoppingLists(prev => 
+                prev.map(item => 
+                  item.id === payload.old.id ? payload.new : item
+                )
+              );
+              break;
+            case 'DELETE':
+              setShoppingLists(prev => 
+                prev.filter(item => item.id !== payload.old.id)
+              );
+              break;
+          }
+        }
+      )
+      .subscribe();
+    
+    const fetchInitialData = async () => {
+      const { data: initialProducts } = await supabase.from('products').select('*');
+      const { data: initialShoppers } = await supabase.from('Shoppers').select('*');
+      const { data: initialShoppingLists } = await supabase.from('shopping_list').select('*');
+      
+      setProducts(initialProducts || []);
+      setShoppers(initialShoppers || []);
+      setShoppingLists(initialShoppingLists || []);
+    };
+    
+    fetchInitialData();
+    
+    return () => {
+      supabase.removeChannel(productsChannel);
+    };
   }, []);
   
   return (
@@ -88,13 +185,13 @@ const DashboardPage = () => {
         
         <TabsContent value="inventory" className="animate-fade-in">
           <div className="dashboard-card hover-lift glass-effect border-gradient">
-            <InventoryTable />
+            <InventoryTable initialProducts={products} />
           </div>
         </TabsContent>
         
         <TabsContent value="users" className="animate-fade-in">
           <div className="dashboard-card hover-lift glass-effect border-gradient">
-            <UserManagement />
+            <UserManagement initialShoppers={shoppers} />
           </div>
         </TabsContent>
       </Tabs>

@@ -28,60 +28,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const authCheckComplete = useRef(false);
   const { toast } = useToast();
 
-  const checkUserRole = async (userId: string) => {
+  const checkUserRole = async (userId: string, email: string) => {
     if (roleCheckInProgress) return;
     
     try {
       setRoleCheckInProgress(true);
       
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) {
-        throw new Error("No authenticated user found");
-      }
-      
-      const { data: ownerData, error: ownerError } = await supabase
-        .from('owners')
-        .select('id')
-        .eq('email', userData.user.email)
-        .single();
-
-      if (ownerError && ownerError.code !== 'PGRST116') {
-        console.error("Error checking owner status:", ownerError);
-      }
-
-      if (ownerData) {
-        console.log("User is an owner");
+      // Only rouahabibi2000@gmail.com is an owner
+      if (email === 'rouahabibi2000@gmail.com') {
+        console.log("User role determined: owner");
         setUserRole('owner');
         return;
       }
-
-      const { data: shopperData, error: shopperError } = await supabase
+      
+      console.log("User role determined: shopper");
+      // Ensure shopper record exists
+      const { data: shopperData, error } = await supabase
         .from('Shoppers')
         .select('id')
         .eq('id', userId)
         .single();
-
-      if (shopperError && shopperError.code !== 'PGRST116') {
-        console.error("Error checking shopper status:", shopperError);
+      
+      if (!shopperData) {
+        // Insert shopper if not exists
+        const { error: insertError } = await supabase
+          .from('Shoppers')
+          .insert([{ 
+            id: userId, 
+            email: email || '', 
+            rfid_tag: '' 
+          }]);
+        
+        if (insertError) {
+          console.error("Error inserting shopper:", insertError);
+        }
       }
-
-      if (shopperData) {
-        console.log("User is a shopper");
-        setUserRole('shopper');
-        return;
-      }
-
-      console.log("User not found in either table, defaulting to shopper role");
+      
       setUserRole('shopper');
-      
-      const { error: insertError } = await supabase
-        .from('Shoppers')
-        .insert([{ id: userId, email: userData.user.email || '', rfid_tag: '' }]);
-      
-      if (insertError) {
-        console.error("Error adding user to shoppers table:", insertError);
-      }
-      
     } catch (error) {
       console.error("Error in checkUserRole:", error);
       setUserRole('shopper');
@@ -113,7 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               if (!authCheckComplete.current) {
                 setTimeout(() => {
                   if (isActive) {
-                    checkUserRole(authSession.user.id);
+                    checkUserRole(authSession.user.id, authSession.user.email);
                   }
                 }, 50);
               }
@@ -136,7 +119,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         
         if (currentSession?.user) {
           setCurrentUser(currentSession.user);
-          await checkUserRole(currentSession.user.id);
+          await checkUserRole(currentSession.user.id, currentSession.user.email);
         } else {
           setCurrentUser(null);
           setUserRole(null);
@@ -219,63 +202,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (error) throw error;
 
       if (data?.user) {
-        try {
-          const { data: ownerData, error: ownerError } = await supabase
-            .from('owners')
-            .select('id')
-            .eq('email', data.user.email)
-            .maybeSingle();
-            
-          if (ownerError) {
-            console.error("Error checking if email exists in owners table:", ownerError);
-          }
-          
-          if (ownerData) {
-            console.log("User email found in owners table, setting role to owner");
-            setUserRole('owner');
-          } else {
-            const { data: existingUser, error: fetchError } = await supabase
-              .from('Shoppers')
-              .select('id')
-              .eq('id', data.user.id)
-              .maybeSingle();
+        // Automatically set role based on our predefined logic
+        await checkUserRole(data.user.id, data.user.email || '');
 
-            if (fetchError) {
-              console.error("Error checking if user exists in shoppers table:", fetchError);
-            }
-
-            if (!existingUser) {
-              console.log("User not found in shoppers table, inserting new record");
-              const { error: insertError } = await supabase
-                .from('Shoppers')
-                .insert([{ 
-                  id: data.user.id, 
-                  email: data.user.email || '', 
-                  rfid_tag: '' 
-                }]);
-              
-              if (insertError) {
-                console.error("Error inserting user into shoppers table:", insertError);
-              } else {
-                console.log("Successfully added user to shoppers table");
-                setUserRole('shopper');
-              }
-            } else {
-              console.log("User already exists in shoppers table");
-              setUserRole('shopper');
-            }
-          }
-        } catch (error) {
-          console.error("Exception during role determination:", error);
-          setUserRole('shopper');
-        }
+        toast({
+          title: "Sign up successful",
+          description: "Your account has been created.",
+        });
+        return true;
       }
 
-      toast({
-        title: "Sign up successful",
-        description: "Your account has been created. Please confirm your email.",
-      });
-      return true;
+      throw new Error("No user data received");
     } catch (error: any) {
       toast({
         title: "Sign up failed",

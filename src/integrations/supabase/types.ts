@@ -62,7 +62,7 @@ export type Database = {
         }
         Insert: {
           email: string
-          id?: string
+          id: string
           rfid_tag?: string | null
         }
         Update: {

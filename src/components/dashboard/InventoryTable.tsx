@@ -1,6 +1,5 @@
-
-import { useState } from "react";
-import { products as initialProducts, Product } from "@/services/mockData";
+import React, { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus, Edit, Trash, Check, X } from "lucide-react";
@@ -13,12 +12,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Product } from "@/services/mockData";
 
-const InventoryTable = () => {
+interface InventoryTableProps {
+  initialProducts?: Product[];
+}
+
+const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] }) => {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+  
+  useEffect(() => {
+    setProducts(initialProducts);
+  }, [initialProducts]);
   
   const filteredProducts = products.filter(
     (product) =>
@@ -28,38 +36,68 @@ const InventoryTable = () => {
       product.subcategory.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  const handleUpdateProduct = (updatedProduct: Product) => {
-    setProducts((prevProducts) =>
-      prevProducts.map((p) =>
-        p.id === updatedProduct.id ? updatedProduct : p
-      )
-    );
-    setEditingProduct(null);
-    
-    toast({
-      title: "Product updated",
-      description: `${updatedProduct.name} has been updated successfully.`,
-    });
-  };
-
-  const handleDeleteProduct = (productId: string) => {
-    const productToDelete = products.find((p) => p.id === productId);
-    
-    if (confirm(`Are you sure you want to delete ${productToDelete?.name}?`)) {
-      setProducts((prevProducts) =>
-        prevProducts.filter((p) => p.id !== productId)
-      );
+  const handleUpdateProduct = async (updatedProduct: Product) => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          Product: updatedProduct.name,
+          Category: updatedProduct.category,
+          Subcategory: updatedProduct.subcategory,
+          Aisle: updatedProduct.aisle,
+          Price: updatedProduct.price,
+          Stock: updatedProduct.quantityInStock
+        })
+        .eq('Barcode ID', updatedProduct.barcodeId);
+      
+      if (error) throw error;
+      
+      setEditingProduct(null);
       
       toast({
-        title: "Product deleted",
-        description: `${productToDelete?.name} has been deleted.`,
-        variant: "destructive",
+        title: "Product updated",
+        description: `${updatedProduct.name} has been updated successfully.`,
+      });
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Update failed",
+        description: "Could not update the product.",
+        variant: "destructive"
       });
     }
   };
+
+  const handleDeleteProduct = async (productId: string) => {
+    const productToDelete = products.find((p) => p.id === productId);
+    
+    if (confirm(`Are you sure you want to delete ${productToDelete?.name}?`)) {
+      try {
+        const { error } = await supabase
+          .from('products')
+          .delete()
+          .eq('Barcode ID', productToDelete?.barcodeId);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Product deleted",
+          description: `${productToDelete?.name} has been deleted.`,
+          variant: "destructive",
+        });
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast({
+          title: "Delete failed",
+          description: "Could not delete the product.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
   
-  const handleAddProduct = () => {
-    const newProduct: Product = {
+  const handleAddProduct = async () => {
+    const newProduct = {
       id: `product_${Date.now()}`,
       name: "New Product",
       description: "Product description",
@@ -72,13 +110,35 @@ const InventoryTable = () => {
       quantityInStock: 100,
     };
     
-    setProducts([newProduct, ...products]);
-    setEditingProduct(newProduct);
-    
-    toast({
-      title: "New product added",
-      description: "Please update the product details.",
-    });
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          Product: newProduct.name,
+          Barcode_ID: parseInt(newProduct.barcodeId.replace('B', '')),
+          Category: newProduct.category,
+          Subcategory: newProduct.subcategory,
+          Aisle: newProduct.aisle,
+          Price: newProduct.price,
+          Stock: newProduct.quantityInStock
+        });
+      
+      if (error) throw error;
+      
+      setEditingProduct(newProduct);
+      
+      toast({
+        title: "New product added",
+        description: "Please update the product details.",
+      });
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast({
+        title: "Add failed",
+        description: "Could not add the product.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleCancelEdit = () => {
