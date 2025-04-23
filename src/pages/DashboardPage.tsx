@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -33,95 +32,9 @@ const DashboardPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [shoppers, setShoppers] = useState<any[]>([]);
   const [shoppingLists, setShoppingLists] = useState([]);
-  
+
   useEffect(() => {
     setTimeout(() => setIsVisible(true), 100);
-    
-    const productsChannel = supabase
-      .channel('custom-all-channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          console.log('Change received:', payload);
-          switch(payload.eventType) {
-            case 'INSERT':
-              setProducts(prev => [...prev, transformProducts([payload.new])[0]]);
-              break;
-            case 'UPDATE':
-              setProducts(prev => 
-                prev.map(item => 
-                  item.id === `product_${payload.old['Barcode ID']}` ? transformProducts([payload.new])[0] : item
-                )
-              );
-              break;
-            case 'DELETE':
-              setProducts(prev => 
-                prev.filter(item => item.id !== `product_${payload.old['Barcode ID']}`)
-              );
-              break;
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shoppers' },
-        (payload) => {
-          console.log('Shopper Change received:', payload);
-          switch(payload.eventType) {
-            case 'INSERT':
-              const newShopper = {
-                id: payload.new.id,
-                email: payload.new.email || '',
-                rfid_tag: payload.new.rfid_tag || null
-              };
-              console.log('Adding new shopper to state:', newShopper);
-              setShoppers(prev => [...prev, newShopper]);
-              toast({
-                title: "New shopper added",
-                description: `${payload.new.email} has joined`,
-              });
-              break;
-            case 'UPDATE':
-              setShoppers(prev => 
-                prev.map(item => 
-                  item.id === payload.old.id ? payload.new : item
-                )
-              );
-              break;
-            case 'DELETE':
-              setShoppers(prev => 
-                prev.filter(item => item.id !== payload.old.id)
-              );
-              break;
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_list' },
-        (payload) => {
-          console.log('Shopping List Change received:', payload);
-          switch(payload.eventType) {
-            case 'INSERT':
-              setShoppingLists(prev => [...prev, payload.new]);
-              break;
-            case 'UPDATE':
-              setShoppingLists(prev => 
-                prev.map(item => 
-                  item.id === payload.old.id ? payload.new : item
-                )
-              );
-              break;
-            case 'DELETE':
-              setShoppingLists(prev => 
-                prev.filter(item => item.id !== payload.old.id)
-              );
-              break;
-          }
-        }
-      )
-      .subscribe();
     
     const fetchInitialData = async () => {
       try {
@@ -134,26 +47,21 @@ const DashboardPage = () => {
           setProducts(transformProducts(initialProducts || []));
         }
         
-        // Fetch shoppers with debug logging
-        console.log("Fetching shoppers...");
-        const { data: initialShoppers, error: shoppersError } = await supabase
+        // Fetch shoppers with improved logging
+        const { data: shoppersData, error: shoppersError } = await supabase
           .from('shoppers')
           .select('*');
-        
+
         if (shoppersError) {
           console.error("Error fetching shoppers:", shoppersError);
+          toast({
+            title: "Error",
+            description: "Failed to fetch shoppers data",
+            variant: "destructive",
+          });
         } else {
-          console.log("Fetched shoppers:", initialShoppers);
-          if (initialShoppers && initialShoppers.length > 0) {
-            // Log details of each shopper
-            initialShoppers.forEach(shopper => {
-              console.log(`Shopper found - ID: ${shopper.id}, Email: ${shopper.email}`);
-            });
-            setShoppers(initialShoppers || []);
-          } else {
-            console.log("No shoppers found in database");
-            setShoppers([]);
-          }
+          console.log("Fetched shoppers data:", shoppersData);
+          setShoppers(shoppersData || []);
         }
         
         // Fetch shopping lists
@@ -166,16 +74,46 @@ const DashboardPage = () => {
         }
       } catch (error) {
         console.error("Error in fetchInitialData:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
       }
     };
-    
+
     fetchInitialData();
     
+    // Set up real-time subscription for shoppers table
+    const shoppersChannel = supabase
+      .channel('shoppers-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shoppers' },
+        (payload) => {
+          console.log('Shoppers change received:', payload);
+          if (payload.eventType === 'INSERT') {
+            setShoppers((prev) => [...prev, payload.new]);
+          } else if (payload.eventType === 'UPDATE') {
+            setShoppers((prev) =>
+              prev.map((shopper) =>
+                shopper.id === payload.old.id ? payload.new : shopper
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setShoppers((prev) =>
+              prev.filter((shopper) => shopper.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(productsChannel);
+      supabase.removeChannel(shoppersChannel);
     };
   }, []);
-  
+
   return (
     <div className={`container mx-auto px-4 py-12 transition-all duration-700 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">

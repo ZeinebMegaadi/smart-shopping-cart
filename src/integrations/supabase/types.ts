@@ -62,18 +62,29 @@ export type Database = {
           email: string
           id: string
           rfid_tag: string | null
+          "shopping-list": string | null
         }
         Insert: {
           email: string
           id: string
           rfid_tag?: string | null
+          "shopping-list"?: string | null
         }
         Update: {
           email?: string
           id?: string
           rfid_tag?: string | null
+          "shopping-list"?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shoppers_shopping-list_fkey"
+            columns: ["shopping-list"]
+            isOneToOne: false
+            referencedRelation: "shopping_list"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shopping_list: {
         Row: {
