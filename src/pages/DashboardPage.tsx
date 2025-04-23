@@ -70,7 +70,13 @@ const DashboardPage = () => {
           console.log('Shopper Change received:', payload);
           switch(payload.eventType) {
             case 'INSERT':
-              setShoppers(prev => [...prev, payload.new]);
+              const newShopper = {
+                id: payload.new.id,
+                email: payload.new.email || '',
+                rfid_tag: payload.new.rfid_tag || null
+              };
+              console.log('Adding new shopper to state:', newShopper);
+              setShoppers(prev => [...prev, newShopper]);
               toast({
                 title: "New shopper added",
                 description: `${payload.new.email} has joined`,
@@ -143,10 +149,11 @@ const DashboardPage = () => {
             initialShoppers.forEach(shopper => {
               console.log(`Shopper found - ID: ${shopper.id}, Email: ${shopper.email}`);
             });
+            setShoppers(initialShoppers || []);
           } else {
             console.log("No shoppers found in database");
+            setShoppers([]);
           }
-          setShoppers(initialShoppers || []);
         }
         
         // Fetch shopping lists

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -10,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { 
   Card, 
-  CardContent, 
+  CardContent,
   CardDescription, 
   CardHeader, 
   CardTitle 
@@ -30,10 +31,10 @@ interface ShoppingItem {
 
 interface Shopper {
   id: string;
-  name?: string;
   email: string;
+  rfid_tag?: string | null;
+  name?: string;
   rfidCardId?: string;
-  rfid_tag?: string;
   shoppingList?: ShoppingItem[];
 }
 
@@ -45,7 +46,7 @@ interface Owner {
 }
 
 interface UserManagementProps {
-  initialShoppers?: any[];
+  initialShoppers?: Shopper[];
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] }) => {
@@ -59,7 +60,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    console.log("Initial shoppers data:", initialShoppers);
+    console.log("Initial shoppers data (UserManagement):", initialShoppers);
     
     if (initialShoppers && Array.isArray(initialShoppers)) {
       const processedShoppers = initialShoppers.map(shopper => ({
@@ -71,7 +72,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         shoppingList: shopper.shoppingList || []
       }));
       
-      console.log("Processed shoppers:", processedShoppers);
+      console.log("Processed shoppers (UserManagement):", processedShoppers);
       setShoppers(processedShoppers);
     } else {
       console.error("initialShoppers is not an array:", initialShoppers);
@@ -83,22 +84,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     const fetchShoppers = async () => {
       setIsLoading(true);
       try {
-        console.log("Fetching shoppers from database...");
+        console.log("Fetching shoppers from database (UserManagement)...");
         const { data, error } = await supabase
           .from('shoppers')
           .select('*');
         
         if (error) {
-          console.error("Error fetching shoppers:", error);
+          console.error("Error fetching shoppers (UserManagement):", error);
           toast({
             title: "Error fetching shoppers",
             description: error.message,
             variant: "destructive"
           });
+          setIsLoading(false);
           return;
         }
         
-        console.log("Direct shoppers fetch result:", data);
+        console.log("Direct shoppers fetch result (UserManagement):", data);
         
         if (data && Array.isArray(data)) {
           const processedShoppers = data.map(shopper => ({
@@ -130,11 +132,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
             }
           }
           
-          console.log("Fully processed shoppers with lists:", processedShoppers);
+          console.log("Fully processed shoppers with lists (UserManagement):", processedShoppers);
           setShoppers(processedShoppers);
         }
       } catch (error) {
-        console.error("Unexpected error in fetchShoppers:", error);
+        console.error("Unexpected error in fetchShoppers (UserManagement):", error);
         toast({
           title: "Error loading shoppers",
           description: "Failed to load shopper data",
@@ -182,7 +184,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shoppers' },
         (payload) => {
-          console.log('Shopper Change received:', payload);
+          console.log('Shopper Change received (UserManagement):', payload);
           if (payload.eventType === 'INSERT') {
             const newShopper: Shopper = {
               id: payload.new.id,
@@ -193,6 +195,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
               shoppingList: []
             };
             
+            console.log("Adding new shopper to UserManagement state:", newShopper);
             setShoppers(prev => [...prev, newShopper]);
             toast({
               title: "New shopper added",
@@ -389,7 +392,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                                   </div>
                                 )}
                               </TableCell>
-                              <TableCell className="font-medium">{shopper.name || 'Unknown'}</TableCell>
+                              <TableCell className="font-medium">{shopper.name || shopper.email?.split('@')[0] || 'Unknown'}</TableCell>
                               <TableCell>{shopper.email || 'No email'}</TableCell>
                               <TableCell>
                                 <span className="px-2 py-1 rounded-full text-xs bg-secondary/20 text-secondary">
@@ -426,7 +429,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                               <TableRow>
                                 <TableCell colSpan={6} className="p-0">
                                   <div className="bg-muted/30 p-4 border-t border-b rounded-md m-2 animate-fade-in">
-                                    <h4 className="font-medium mb-2">{shopper.name || 'Unknown'}'s Shopping List</h4>
+                                    <h4 className="font-medium mb-2">{shopper.name || shopper.email?.split('@')[0] || 'Unknown'}'s Shopping List</h4>
                                     {shoppingList.length > 0 ? (
                                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                         {shoppingList.map((item) => (
@@ -481,6 +484,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                               const fetchShoppers = async () => {
                                 const { data } = await supabase.from('shoppers').select('*');
                                 console.log("Refresh result:", data);
+                                if (data && data.length > 0) {
+                                  const processedShoppers = data.map(shopper => ({
+                                    id: shopper.id,
+                                    name: shopper.email?.split('@')[0] || 'Unknown',
+                                    email: shopper.email || 'No email',
+                                    rfidCardId: shopper.rfid_tag || 'N/A',
+                                    rfid_tag: shopper.rfid_tag,
+                                    shoppingList: [] as ShoppingItem[]
+                                  }));
+                                  setShoppers(processedShoppers);
+                                }
                               };
                               fetchShoppers();
                             }}
@@ -543,7 +557,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                             <Shield size={16} />
                           </div>
                         </TableCell>
-                        <TableCell className="font-medium">{owner.name || owner.email || 'Unknown'}</TableCell>
+                        <TableCell className="font-medium">{owner.name || owner.email?.split('@')[0] || 'Unknown'}</TableCell>
                         <TableCell>{owner.email || 'No email'}</TableCell>
                         <TableCell>
                           <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">
