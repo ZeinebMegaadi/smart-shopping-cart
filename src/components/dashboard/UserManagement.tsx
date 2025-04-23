@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -19,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface ShoppingItem {
   id: string;
@@ -78,40 +80,51 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
 
   useEffect(() => {
     const fetchShoppers = async () => {
-      const { data, error } = await supabase.from('shoppers').select('*');
-      if (error) {
-        console.error("Error fetching shoppers:", error);
-        return;
-      }
-      
-      console.log("Direct shoppers fetch result:", data);
-      
-      if (data && Array.isArray(data)) {
-        const processedShoppers = data.map(shopper => ({
-          id: shopper.id,
-          name: shopper.name || 'Unknown',
-          email: shopper.email || 'No email',
-          rfidCardId: shopper.rfidCardId || shopper.rfid_tag || 'N/A',
-          shoppingList: shopper.shoppingList || []
-        }));
-        
-        for (const shopper of processedShoppers) {
-          const { data: listData } = await supabase
-            .from('shopping_list')
-            .select('*')
-            .eq('shopper_id', shopper.id);
-            
-          if (listData) {
-            shopper.shoppingList = listData.map(item => ({
-              id: item.id,
-              name: item.product_id.toString(),
-              aisle: 'N/A',
-              checked: item.scanned || false
-            }));
-          }
+      try {
+        const { data, error } = await supabase.from('shoppers').select('*');
+        if (error) {
+          console.error("Error fetching shoppers:", error);
+          return;
         }
         
-        setShoppers(processedShoppers);
+        console.log("Direct shoppers fetch result:", data);
+        
+        if (data && Array.isArray(data)) {
+          const processedShoppers = data.map(shopper => ({
+            id: shopper.id,
+            name: shopper.name || 'Unknown',
+            email: shopper.email || 'No email',
+            rfidCardId: shopper.rfid_tag || 'N/A', // Use rfid_tag as rfidCardId
+            rfid_tag: shopper.rfid_tag,
+            shoppingList: [] as ShoppingItem[] // Initialize with empty array
+          }));
+          
+          // Fetch shopping list items for each shopper
+          for (const shopper of processedShoppers) {
+            try {
+              const { data: listData } = await supabase
+                .from('shopping_list')
+                .select('*')
+                .eq('shopper_id', shopper.id);
+                
+              if (listData) {
+                shopper.shoppingList = listData.map(item => ({
+                  id: item.id,
+                  name: item.product_id.toString(),
+                  aisle: 'N/A',
+                  checked: item.scanned || false
+                }));
+              }
+            } catch (listError) {
+              console.error(`Error fetching shopping list for shopper ${shopper.id}:`, listError);
+            }
+          }
+          
+          console.log("Fully processed shoppers with lists:", processedShoppers);
+          setShoppers(processedShoppers);
+        }
+      } catch (error) {
+        console.error("Unexpected error in fetchShoppers:", error);
       }
     };
     
@@ -120,24 +133,63 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
 
   useEffect(() => {
     const fetchOwners = async () => {
-      const { data, error } = await supabase.from('owners').select('*');
-      if (error) {
-        console.error("Error fetching owners:", error);
-        return;
-      }
-      
-      console.log("Owners fetch result:", data);
-      
-      if (data) {
-        const processedOwners = data.map(owner => ({
-          ...owner,
-          name: owner.email || 'Unknown',
-          storeId: 'N/A'
-        }));
-        setOwners(processedOwners);
+      try {
+        const { data, error } = await supabase.from('owners').select('*');
+        if (error) {
+          console.error("Error fetching owners:", error);
+          return;
+        }
+        
+        console.log("Owners fetch result:", data);
+        
+        if (data) {
+          const processedOwners = data.map(owner => ({
+            id: owner.id,
+            email: owner.email,
+            name: owner.name || owner.email || 'Unknown',
+            storeId: owner.storeId || 'N/A'
+          }));
+          setOwners(processedOwners);
+        }
+      } catch (error) {
+        console.error("Unexpected error in fetchOwners:", error);
       }
     };
     fetchOwners();
+  }, []);
+
+  // Set up a real-time subscription for shoppers
+  useEffect(() => {
+    const shoppersChannel = supabase
+      .channel('custom-shoppers-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shoppers' },
+        (payload) => {
+          console.log('Shopper Change received:', payload);
+          if (payload.eventType === 'INSERT') {
+            const newShopper: Shopper = {
+              id: payload.new.id,
+              email: payload.new.email || 'No email',
+              name: payload.new.name || 'Unknown',
+              rfidCardId: payload.new.rfid_tag || 'N/A',
+              rfid_tag: payload.new.rfid_tag,
+              shoppingList: []
+            };
+            
+            setShoppers(prev => [...prev, newShopper]);
+            toast({
+              title: "New shopper added",
+              description: `${payload.new.email} has joined`,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(shoppersChannel);
+    };
   }, []);
   
   const handleSort = (field: "name" | "email" | "role" | "listCount") => {
