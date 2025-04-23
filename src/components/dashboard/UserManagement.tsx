@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -21,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield } from "lucide-react";
 
-// Define proper interfaces for the data structure
 interface ShoppingItem {
   id: string;
   name: string;
@@ -31,17 +29,17 @@ interface ShoppingItem {
 
 interface Shopper {
   id: string;
-  name: string;
+  name?: string;
   email: string;
-  rfidCardId: string;
-  shoppingList: ShoppingItem[];
+  rfidCardId?: string;
+  shoppingList?: ShoppingItem[];
 }
 
 interface Owner {
   id: string;
   email: string;
-  name?: string; // Make name optional since it might not exist in the DB
-  storeId?: string; // Make storeId optional
+  name?: string;
+  storeId?: string;
 }
 
 interface UserManagementProps {
@@ -57,21 +55,18 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [activeTab, setActiveTab] = useState<"shoppers" | "owners">("shoppers");
   
-  // Update shoppers when initialShoppers change
   useEffect(() => {
     setShoppers(initialShoppers);
   }, [initialShoppers]);
 
-  // Fetch owners on component mount
   useEffect(() => {
     const fetchOwners = async () => {
       const { data, error } = await supabase.from('owners').select('*');
       if (data) {
-        // Add default values for missing fields to prevent errors
         const processedOwners = data.map(owner => ({
           ...owner,
-          name: owner.name || owner.email || 'Unknown', // Use email as fallback or 'Unknown'
-          storeId: owner.storeId || 'N/A'
+          name: owner.email || 'Unknown',
+          storeId: 'N/A'
         }));
         setOwners(processedOwners);
       } else if (error) {
@@ -81,7 +76,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     fetchOwners();
   }, []);
   
-  // Sorting and filtering methods
   const handleSort = (field: "name" | "email" | "role" | "listCount") => {
     const isAsc = sortField === field && sortDirection === "asc";
     setSortField(field);
@@ -92,7 +86,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     setExpandedUser(prevUser => prevUser === userId ? null : userId);
   };
   
-  // Filter and sort shoppers with null checks
   const filteredShoppers = shoppers
     .filter(shopper => {
       const shopperName = shopper.name || '';
@@ -123,10 +116,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
-  // Filter and sort owners with null checks
   const filteredOwners = owners
     .filter(owner => {
-      const ownerName = owner.name || '';
+      const ownerName = owner.name || owner.email || '';
       const ownerEmail = owner.email || '';
       
       return ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,8 +128,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
       let comparison = 0;
       
       if (sortField === "name") {
-        const nameA = a.name || '';
-        const nameB = b.name || '';
+        const nameA = a.name || a.email || '';
+        const nameB = b.name || b.email || '';
         comparison = nameA.localeCompare(nameB);
       } else if (sortField === "email") {
         const emailA = a.email || '';
@@ -282,7 +274,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                           </TableCell>
                         </TableRow>
                         
-                        {/* Expanded shopping list */}
                         {expandedUser === shopper.id && (
                           <TableRow>
                             <TableCell colSpan={6} className="p-0">
@@ -386,7 +377,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                           <Shield size={16} />
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{owner.name || 'Unknown'}</TableCell>
+                      <TableCell className="font-medium">{owner.name || owner.email || 'Unknown'}</TableCell>
                       <TableCell>{owner.email || 'No email'}</TableCell>
                       <TableCell>
                         <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">
