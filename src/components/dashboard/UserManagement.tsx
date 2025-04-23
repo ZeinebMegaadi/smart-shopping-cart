@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -64,9 +63,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     if (initialShoppers && Array.isArray(initialShoppers)) {
       const processedShoppers = initialShoppers.map(shopper => ({
         id: shopper.id,
-        name: shopper.name || 'Unknown',
+        name: shopper.name || shopper.email?.split('@')[0] || 'Unknown',
         email: shopper.email || 'No email',
         rfidCardId: shopper.rfidCardId || shopper.rfid_tag || 'N/A',
+        rfid_tag: shopper.rfid_tag,
         shoppingList: shopper.shoppingList || []
       }));
       
@@ -92,14 +92,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         if (data && Array.isArray(data)) {
           const processedShoppers = data.map(shopper => ({
             id: shopper.id,
-            name: shopper.name || 'Unknown',
+            name: shopper.email?.split('@')[0] || 'Unknown',
             email: shopper.email || 'No email',
-            rfidCardId: shopper.rfid_tag || 'N/A', // Use rfid_tag as rfidCardId
+            rfidCardId: shopper.rfid_tag || 'N/A',
             rfid_tag: shopper.rfid_tag,
-            shoppingList: [] as ShoppingItem[] // Initialize with empty array
+            shoppingList: [] as ShoppingItem[]
           }));
           
-          // Fetch shopping list items for each shopper
           for (const shopper of processedShoppers) {
             try {
               const { data: listData } = await supabase
@@ -146,8 +145,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
           const processedOwners = data.map(owner => ({
             id: owner.id,
             email: owner.email,
-            name: owner.name || owner.email || 'Unknown',
-            storeId: owner.storeId || 'N/A'
+            name: owner.email?.split('@')[0] || 'Unknown',
+            storeId: 'store_1'
           }));
           setOwners(processedOwners);
         }
@@ -158,7 +157,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     fetchOwners();
   }, []);
 
-  // Set up a real-time subscription for shoppers
   useEffect(() => {
     const shoppersChannel = supabase
       .channel('custom-shoppers-channel')
@@ -171,7 +169,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
             const newShopper: Shopper = {
               id: payload.new.id,
               email: payload.new.email || 'No email',
-              name: payload.new.name || 'Unknown',
+              name: payload.new.email?.split('@')[0] || 'Unknown',
               rfidCardId: payload.new.rfid_tag || 'N/A',
               rfid_tag: payload.new.rfid_tag,
               shoppingList: []
@@ -201,7 +199,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const toggleExpandUser = (userId: string) => {
     setExpandedUser(prevUser => prevUser === userId ? null : userId);
   };
-  
+
   const filteredShoppers = shoppers
     .filter(shopper => {
       if (!shopper) return false;
