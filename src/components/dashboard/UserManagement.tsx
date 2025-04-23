@@ -56,6 +56,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const [sortField, setSortField] = useState<"name" | "email" | "role" | "listCount">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [activeTab, setActiveTab] = useState<"shoppers" | "owners">("shoppers");
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     console.log("Initial shoppers data:", initialShoppers);
@@ -80,10 +81,20 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
 
   useEffect(() => {
     const fetchShoppers = async () => {
+      setIsLoading(true);
       try {
-        const { data, error } = await supabase.from('shoppers').select('*');
+        console.log("Fetching shoppers from database...");
+        const { data, error } = await supabase
+          .from('shoppers')
+          .select('*');
+        
         if (error) {
           console.error("Error fetching shoppers:", error);
+          toast({
+            title: "Error fetching shoppers",
+            description: error.message,
+            variant: "destructive"
+          });
           return;
         }
         
@@ -124,6 +135,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         }
       } catch (error) {
         console.error("Unexpected error in fetchShoppers:", error);
+        toast({
+          title: "Error loading shoppers",
+          description: "Failed to load shopper data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -296,162 +314,185 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         <TabsContent value="shoppers" className="animate-fade-in">
           <Card className="border-gradient glass-effect hover-lift">
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">Status</TableHead>
-                    <TableHead 
-                      className="cursor-pointer" 
-                      onClick={() => handleSort("name")}
-                    >
-                      <div className="flex items-center">
-                        Name
-                        {sortField === "name" && (
-                          sortDirection === "asc" ? 
-                            <ChevronUp className="ml-1 h-4 w-4" /> : 
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer" 
-                      onClick={() => handleSort("email")}
-                    >
-                      <div className="flex items-center">
-                        Email
-                        {sortField === "email" && (
-                          sortDirection === "asc" ? 
-                            <ChevronUp className="ml-1 h-4 w-4" /> : 
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead>RFID ID</TableHead>
-                    <TableHead 
-                      className="cursor-pointer" 
-                      onClick={() => handleSort("listCount")}
-                    >
-                      <div className="flex items-center">
-                        Items
-                        {sortField === "listCount" && (
-                          sortDirection === "asc" ? 
-                            <ChevronUp className="ml-1 h-4 w-4" /> : 
-                            <ChevronDown className="ml-1 h-4 w-4" />
-                        )}
-                      </div>
-                    </TableHead>
-                    <TableHead>Shopping List</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredShoppers.map(shopper => {
-                    if (!shopper) return null;
-                    
-                    const shoppingList = shopper.shoppingList || [];
-                    const checkedItems = shoppingList.filter(item => item.checked).length;
-                    const hasShoppingList = shoppingList.length > 0;
-                    
-                    return (
-                      <React.Fragment key={shopper.id}>
-                        <TableRow className="group hover:bg-muted/50 transition-colors">
-                          <TableCell>
-                            {hasShoppingList ? (
-                              <div className="flex w-8 h-8 items-center justify-center bg-primary/10 text-primary rounded-full">
-                                <UserCheck size={16} />
-                              </div>
-                            ) : (
-                              <div className="flex w-8 h-8 items-center justify-center bg-muted/50 text-muted-foreground rounded-full">
-                                <UserX size={16} />
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium">{shopper.name || 'Unknown'}</TableCell>
-                          <TableCell>{shopper.email || 'No email'}</TableCell>
-                          <TableCell>
-                            <span className="px-2 py-1 rounded-full text-xs bg-secondary/20 text-secondary">
-                              {shopper.rfidCardId || shopper.rfid_tag || 'N/A'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {hasShoppingList ? (
-                              <span className="font-medium">
-                                {checkedItems}/{shoppingList.length}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">No items</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleExpandUser(shopper.id)}
-                              className="group-hover:bg-primary/10 group-hover:text-primary"
-                            >
-                              {expandedUser === shopper.id ? "Hide List" : "View List"}
-                              {expandedUser === shopper.id ? (
-                                <ChevronUp className="ml-1 h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="ml-1 h-4 w-4" />
-                              )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+              {isLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <p>Loading shoppers...</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">Status</TableHead>
+                      <TableHead 
+                        className="cursor-pointer" 
+                        onClick={() => handleSort("name")}
+                      >
+                        <div className="flex items-center">
+                          Name
+                          {sortField === "name" && (
+                            sortDirection === "asc" ? 
+                              <ChevronUp className="ml-1 h-4 w-4" /> : 
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer" 
+                        onClick={() => handleSort("email")}
+                      >
+                        <div className="flex items-center">
+                          Email
+                          {sortField === "email" && (
+                            sortDirection === "asc" ? 
+                              <ChevronUp className="ml-1 h-4 w-4" /> : 
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead>RFID ID</TableHead>
+                      <TableHead 
+                        className="cursor-pointer" 
+                        onClick={() => handleSort("listCount")}
+                      >
+                        <div className="flex items-center">
+                          Items
+                          {sortField === "listCount" && (
+                            sortDirection === "asc" ? 
+                              <ChevronUp className="ml-1 h-4 w-4" /> : 
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead>Shopping List</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredShoppers.length > 0 ? (
+                      filteredShoppers.map(shopper => {
+                        if (!shopper) return null;
                         
-                        {expandedUser === shopper.id && (
-                          <TableRow>
-                            <TableCell colSpan={6} className="p-0">
-                              <div className="bg-muted/30 p-4 border-t border-b rounded-md m-2 animate-fade-in">
-                                <h4 className="font-medium mb-2">{shopper.name || 'Unknown'}'s Shopping List</h4>
-                                {shoppingList.length > 0 ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {shoppingList.map((item) => (
-                                      <div
-                                        key={item.id}
-                                        className={`flex items-center p-2 rounded-md ${
-                                          item.checked 
-                                            ? 'bg-green-50 border border-green-200' 
-                                            : 'bg-white border'
-                                        }`}
-                                      >
-                                        <div 
-                                          className={`w-4 h-4 rounded-full mr-3 ${
-                                            item.checked ? 'bg-green-500' : 'bg-muted'
-                                          }`}
-                                        />
-                                        <div className="flex-1">
-                                          <p className={`font-medium ${
-                                            item.checked ? 'line-through text-muted-foreground' : ''
-                                          }`}>
-                                            {item.name || 'Unnamed item'}
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            Aisle: {item.aisle || 'Unknown'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))}
+                        const shoppingList = shopper.shoppingList || [];
+                        const checkedItems = shoppingList.filter(item => item.checked).length;
+                        const hasShoppingList = shoppingList.length > 0;
+                        
+                        return (
+                          <React.Fragment key={shopper.id}>
+                            <TableRow className="group hover:bg-muted/50 transition-colors">
+                              <TableCell>
+                                {hasShoppingList ? (
+                                  <div className="flex w-8 h-8 items-center justify-center bg-primary/10 text-primary rounded-full">
+                                    <UserCheck size={16} />
                                   </div>
                                 ) : (
-                                  <p className="text-muted-foreground">No items in shopping list</p>
+                                  <div className="flex w-8 h-8 items-center justify-center bg-muted/50 text-muted-foreground rounded-full">
+                                    <UserX size={16} />
+                                  </div>
                                 )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                  
-                  {filteredShoppers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <p className="text-muted-foreground">No shoppers found matching your search</p>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                              </TableCell>
+                              <TableCell className="font-medium">{shopper.name || 'Unknown'}</TableCell>
+                              <TableCell>{shopper.email || 'No email'}</TableCell>
+                              <TableCell>
+                                <span className="px-2 py-1 rounded-full text-xs bg-secondary/20 text-secondary">
+                                  {shopper.rfidCardId || shopper.rfid_tag || 'N/A'}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {hasShoppingList ? (
+                                  <span className="font-medium">
+                                    {checkedItems}/{shoppingList.length}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">No items</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleExpandUser(shopper.id)}
+                                  className="group-hover:bg-primary/10 group-hover:text-primary"
+                                >
+                                  {expandedUser === shopper.id ? "Hide List" : "View List"}
+                                  {expandedUser === shopper.id ? (
+                                    <ChevronUp className="ml-1 h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="ml-1 h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                            
+                            {expandedUser === shopper.id && (
+                              <TableRow>
+                                <TableCell colSpan={6} className="p-0">
+                                  <div className="bg-muted/30 p-4 border-t border-b rounded-md m-2 animate-fade-in">
+                                    <h4 className="font-medium mb-2">{shopper.name || 'Unknown'}'s Shopping List</h4>
+                                    {shoppingList.length > 0 ? (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {shoppingList.map((item) => (
+                                          <div
+                                            key={item.id}
+                                            className={`flex items-center p-2 rounded-md ${
+                                              item.checked 
+                                                ? 'bg-green-50 border border-green-200' 
+                                                : 'bg-white border'
+                                            }`}
+                                          >
+                                            <div 
+                                              className={`w-4 h-4 rounded-full mr-3 ${
+                                                item.checked ? 'bg-green-500' : 'bg-muted'
+                                              }`}
+                                            />
+                                            <div className="flex-1">
+                                              <p className={`font-medium ${
+                                                item.checked ? 'line-through text-muted-foreground' : ''
+                                              }`}>
+                                                {item.name || 'Unnamed item'}
+                                              </p>
+                                              <p className="text-xs text-muted-foreground">
+                                                Aisle: {item.aisle || 'Unknown'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-muted-foreground">No items in shopping list</p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <p className="text-muted-foreground">
+                            {searchTerm ? 'No shoppers found matching your search' : 'No shoppers in the database'}
+                          </p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => {
+                              console.log("Refreshing shopper data...");
+                              const fetchShoppers = async () => {
+                                const { data } = await supabase.from('shoppers').select('*');
+                                console.log("Refresh result:", data);
+                              };
+                              fetchShoppers();
+                            }}
+                          >
+                            Refresh Data
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -494,29 +535,29 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOwners.map(owner => (
-                    <TableRow key={owner.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell>
-                        <div className="flex w-8 h-8 items-center justify-center bg-secondary/10 text-secondary rounded-full">
-                          <Shield size={16} />
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">{owner.name || owner.email || 'Unknown'}</TableCell>
-                      <TableCell>{owner.email || 'No email'}</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">
-                          {owner.storeId || 'N/A'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="sm" disabled>
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  
-                  {filteredOwners.length === 0 && (
+                  {filteredOwners.length > 0 ? (
+                    filteredOwners.map(owner => (
+                      <TableRow key={owner.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell>
+                          <div className="flex w-8 h-8 items-center justify-center bg-secondary/10 text-secondary rounded-full">
+                            <Shield size={16} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{owner.name || owner.email || 'Unknown'}</TableCell>
+                        <TableCell>{owner.email || 'No email'}</TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">
+                            {owner.storeId || 'N/A'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm" disabled>
+                            View Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <p className="text-muted-foreground">No owners found matching your search</p>

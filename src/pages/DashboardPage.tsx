@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -118,6 +119,7 @@ const DashboardPage = () => {
     
     const fetchInitialData = async () => {
       try {
+        // Fetch products
         const { data: initialProducts, error: productsError } = await supabase.from('products').select('*');
         if (productsError) {
           console.error("Error fetching products:", productsError);
@@ -126,14 +128,28 @@ const DashboardPage = () => {
           setProducts(transformProducts(initialProducts || []));
         }
         
-        const { data: initialShoppers, error: shoppersError } = await supabase.from('shoppers').select('*');
+        // Fetch shoppers with debug logging
+        console.log("Fetching shoppers...");
+        const { data: initialShoppers, error: shoppersError } = await supabase
+          .from('shoppers')
+          .select('*');
+        
         if (shoppersError) {
           console.error("Error fetching shoppers:", shoppersError);
         } else {
           console.log("Fetched shoppers:", initialShoppers);
+          if (initialShoppers && initialShoppers.length > 0) {
+            // Log details of each shopper
+            initialShoppers.forEach(shopper => {
+              console.log(`Shopper found - ID: ${shopper.id}, Email: ${shopper.email}`);
+            });
+          } else {
+            console.log("No shoppers found in database");
+          }
           setShoppers(initialShoppers || []);
         }
         
+        // Fetch shopping lists
         const { data: initialShoppingLists, error: listsError } = await supabase.from('shopping_list').select('*');
         if (listsError) {
           console.error("Error fetching shopping lists:", listsError);
