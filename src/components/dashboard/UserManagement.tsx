@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -20,13 +21,36 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield } from "lucide-react";
 
+// Define proper interfaces for the data structure
+interface ShoppingItem {
+  id: string;
+  name: string;
+  aisle: string;
+  checked: boolean;
+}
+
+interface Shopper {
+  id: string;
+  name: string;
+  email: string;
+  rfidCardId: string;
+  shoppingList: ShoppingItem[];
+}
+
+interface Owner {
+  id: string;
+  email: string;
+  name?: string; // Make name optional since it might not exist in the DB
+  storeId?: string; // Make storeId optional
+}
+
 interface UserManagementProps {
   initialShoppers?: any[];
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] }) => {
   const [shoppers, setShoppers] = useState(initialShoppers);
-  const [owners, setOwners] = useState([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"name" | "email" | "role" | "listCount">("name");
@@ -42,7 +66,17 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   useEffect(() => {
     const fetchOwners = async () => {
       const { data, error } = await supabase.from('owners').select('*');
-      if (data) setOwners(data);
+      if (data) {
+        // Add default values for missing fields to prevent errors
+        const processedOwners = data.map(owner => ({
+          ...owner,
+          name: owner.name || owner.email || 'Unknown', // Use email as fallback or 'Unknown'
+          storeId: owner.storeId || 'N/A'
+        }));
+        setOwners(processedOwners);
+      } else if (error) {
+        console.error("Error fetching owners:", error);
+      }
     };
     fetchOwners();
   }, []);
@@ -58,40 +92,57 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     setExpandedUser(prevUser => prevUser === userId ? null : userId);
   };
   
-  // Filter and sort shoppers
+  // Filter and sort shoppers with null checks
   const filteredShoppers = shoppers
-    .filter(shopper => 
-      shopper.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shopper.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shopper.rfidCardId.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(shopper => {
+      const shopperName = shopper.name || '';
+      const shopperEmail = shopper.email || '';
+      const shopperRfid = shopper.rfidCardId || '';
+      
+      return shopperName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shopperEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        shopperRfid.toLowerCase().includes(searchTerm.toLowerCase());
+    })
     .sort((a, b) => {
       let comparison = 0;
       
       if (sortField === "name") {
-        comparison = a.name.localeCompare(b.name);
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        comparison = nameA.localeCompare(nameB);
       } else if (sortField === "email") {
-        comparison = a.email.localeCompare(b.email);
+        const emailA = a.email || '';
+        const emailB = b.email || '';
+        comparison = emailA.localeCompare(emailB);
       } else if (sortField === "listCount") {
-        comparison = a.shoppingList.length - b.shoppingList.length;
+        const listLengthA = a.shoppingList ? a.shoppingList.length : 0;
+        const listLengthB = b.shoppingList ? b.shoppingList.length : 0;
+        comparison = listLengthA - listLengthB;
       }
       
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
-  // Filter and sort owners
+  // Filter and sort owners with null checks
   const filteredOwners = owners
-    .filter(owner => 
-      owner.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      owner.email.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(owner => {
+      const ownerName = owner.name || '';
+      const ownerEmail = owner.email || '';
+      
+      return ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ownerEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    })
     .sort((a, b) => {
       let comparison = 0;
       
       if (sortField === "name") {
-        comparison = a.name.localeCompare(b.name);
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        comparison = nameA.localeCompare(nameB);
       } else if (sortField === "email") {
-        comparison = a.email.localeCompare(b.email);
+        const emailA = a.email || '';
+        const emailB = b.email || '';
+        comparison = emailA.localeCompare(emailB);
       }
       
       return sortDirection === "asc" ? comparison : -comparison;
@@ -180,7 +231,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                 </TableHeader>
                 <TableBody>
                   {filteredShoppers.map(shopper => {
-                    const shoppingList = shopper.shoppingList;
+                    const shoppingList = shopper.shoppingList || [];
                     const checkedItems = shoppingList.filter(item => item.checked).length;
                     const hasShoppingList = shoppingList.length > 0;
                     
@@ -198,11 +249,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="font-medium">{shopper.name}</TableCell>
-                          <TableCell>{shopper.email}</TableCell>
+                          <TableCell className="font-medium">{shopper.name || 'Unknown'}</TableCell>
+                          <TableCell>{shopper.email || 'No email'}</TableCell>
                           <TableCell>
                             <span className="px-2 py-1 rounded-full text-xs bg-secondary/20 text-secondary">
-                              {shopper.rfidCardId}
+                              {shopper.rfidCardId || 'N/A'}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -236,7 +287,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                           <TableRow>
                             <TableCell colSpan={6} className="p-0">
                               <div className="bg-muted/30 p-4 border-t border-b rounded-md m-2 animate-fade-in">
-                                <h4 className="font-medium mb-2">{shopper.name}'s Shopping List</h4>
+                                <h4 className="font-medium mb-2">{shopper.name || 'Unknown'}'s Shopping List</h4>
                                 {shoppingList.length > 0 ? (
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {shoppingList.map((item) => (
@@ -257,10 +308,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                                           <p className={`font-medium ${
                                             item.checked ? 'line-through text-muted-foreground' : ''
                                           }`}>
-                                            {item.name}
+                                            {item.name || 'Unnamed item'}
                                           </p>
                                           <p className="text-xs text-muted-foreground">
-                                            Aisle: {item.aisle}
+                                            Aisle: {item.aisle || 'Unknown'}
                                           </p>
                                         </div>
                                       </div>
@@ -335,11 +386,11 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                           <Shield size={16} />
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{owner.name}</TableCell>
-                      <TableCell>{owner.email}</TableCell>
+                      <TableCell className="font-medium">{owner.name || 'Unknown'}</TableCell>
+                      <TableCell>{owner.email || 'No email'}</TableCell>
                       <TableCell>
                         <span className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary">
-                          {owner.storeId}
+                          {owner.storeId || 'N/A'}
                         </span>
                       </TableCell>
                       <TableCell>
