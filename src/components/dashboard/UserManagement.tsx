@@ -32,6 +32,7 @@ interface Shopper {
   name?: string;
   email: string;
   rfidCardId?: string;
+  rfid_tag?: string;
   shoppingList?: ShoppingItem[];
 }
 
@@ -47,7 +48,7 @@ interface UserManagementProps {
 }
 
 const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] }) => {
-  const [shoppers, setShoppers] = useState(initialShoppers);
+  const [shoppers, setShoppers] = useState<Shopper[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
@@ -56,12 +57,77 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const [activeTab, setActiveTab] = useState<"shoppers" | "owners">("shoppers");
   
   useEffect(() => {
-    setShoppers(initialShoppers);
+    console.log("Initial shoppers data:", initialShoppers);
+    
+    if (initialShoppers && Array.isArray(initialShoppers)) {
+      const processedShoppers = initialShoppers.map(shopper => ({
+        id: shopper.id,
+        name: shopper.name || 'Unknown',
+        email: shopper.email || 'No email',
+        rfidCardId: shopper.rfidCardId || shopper.rfid_tag || 'N/A',
+        shoppingList: shopper.shoppingList || []
+      }));
+      
+      console.log("Processed shoppers:", processedShoppers);
+      setShoppers(processedShoppers);
+    } else {
+      console.error("initialShoppers is not an array:", initialShoppers);
+      setShoppers([]);
+    }
   }, [initialShoppers]);
+
+  useEffect(() => {
+    const fetchShoppers = async () => {
+      const { data, error } = await supabase.from('shoppers').select('*');
+      if (error) {
+        console.error("Error fetching shoppers:", error);
+        return;
+      }
+      
+      console.log("Direct shoppers fetch result:", data);
+      
+      if (data && Array.isArray(data)) {
+        const processedShoppers = data.map(shopper => ({
+          id: shopper.id,
+          name: shopper.name || 'Unknown',
+          email: shopper.email || 'No email',
+          rfidCardId: shopper.rfidCardId || shopper.rfid_tag || 'N/A',
+          shoppingList: shopper.shoppingList || []
+        }));
+        
+        for (const shopper of processedShoppers) {
+          const { data: listData } = await supabase
+            .from('shopping_list')
+            .select('*')
+            .eq('shopper_id', shopper.id);
+            
+          if (listData) {
+            shopper.shoppingList = listData.map(item => ({
+              id: item.id,
+              name: item.product_id.toString(),
+              aisle: 'N/A',
+              checked: item.scanned || false
+            }));
+          }
+        }
+        
+        setShoppers(processedShoppers);
+      }
+    };
+    
+    fetchShoppers();
+  }, []);
 
   useEffect(() => {
     const fetchOwners = async () => {
       const { data, error } = await supabase.from('owners').select('*');
+      if (error) {
+        console.error("Error fetching owners:", error);
+        return;
+      }
+      
+      console.log("Owners fetch result:", data);
+      
       if (data) {
         const processedOwners = data.map(owner => ({
           ...owner,
@@ -69,8 +135,6 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
           storeId: 'N/A'
         }));
         setOwners(processedOwners);
-      } else if (error) {
-        console.error("Error fetching owners:", error);
       }
     };
     fetchOwners();
@@ -88,15 +152,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   
   const filteredShoppers = shoppers
     .filter(shopper => {
+      if (!shopper) return false;
+      
       const shopperName = shopper.name || '';
       const shopperEmail = shopper.email || '';
-      const shopperRfid = shopper.rfidCardId || '';
+      const shopperRfid = shopper.rfidCardId || shopper.rfid_tag || '';
       
       return shopperName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shopperEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
         shopperRfid.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
+      if (!a || !b) return 0;
+      
       let comparison = 0;
       
       if (sortField === "name") {
@@ -118,6 +186,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
 
   const filteredOwners = owners
     .filter(owner => {
+      if (!owner) return false;
+      
       const ownerName = owner.name || owner.email || '';
       const ownerEmail = owner.email || '';
       
@@ -125,6 +195,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
         ownerEmail.toLowerCase().includes(searchTerm.toLowerCase());
     })
     .sort((a, b) => {
+      if (!a || !b) return 0;
+      
       let comparison = 0;
       
       if (sortField === "name") {
@@ -223,6 +295,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                 </TableHeader>
                 <TableBody>
                   {filteredShoppers.map(shopper => {
+                    if (!shopper) return null;
+                    
                     const shoppingList = shopper.shoppingList || [];
                     const checkedItems = shoppingList.filter(item => item.checked).length;
                     const hasShoppingList = shoppingList.length > 0;
@@ -245,7 +319,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                           <TableCell>{shopper.email || 'No email'}</TableCell>
                           <TableCell>
                             <span className="px-2 py-1 rounded-full text-xs bg-secondary/20 text-secondary">
-                              {shopper.rfidCardId || 'N/A'}
+                              {shopper.rfidCardId || shopper.rfid_tag || 'N/A'}
                             </span>
                           </TableCell>
                           <TableCell>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -8,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Package2, Activity, Grid2X2, Users } from "lucide-react";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
 import { Product } from "@/services/mockData";
+import { toast } from "@/components/ui/use-toast";
 
 const transformProducts = (dbProducts: any[]): Product[] => {
   return dbProducts.map(item => ({
@@ -30,7 +30,7 @@ const DashboardPage = () => {
   const [isVisible, setIsVisible] = useState(false);
   
   const [products, setProducts] = useState<Product[]>([]);
-  const [shoppers, setShoppers] = useState([]);
+  const [shoppers, setShoppers] = useState<any[]>([]);
   const [shoppingLists, setShoppingLists] = useState([]);
   
   useEffect(() => {
@@ -70,6 +70,10 @@ const DashboardPage = () => {
           switch(payload.eventType) {
             case 'INSERT':
               setShoppers(prev => [...prev, payload.new]);
+              toast({
+                title: "New shopper added",
+                description: `${payload.new.email} has joined`,
+              });
               break;
             case 'UPDATE':
               setShoppers(prev => 
@@ -113,13 +117,33 @@ const DashboardPage = () => {
       .subscribe();
     
     const fetchInitialData = async () => {
-      const { data: initialProducts } = await supabase.from('products').select('*');
-      const { data: initialShoppers } = await supabase.from('shoppers').select('*');
-      const { data: initialShoppingLists } = await supabase.from('shopping_list').select('*');
-      
-      setProducts(transformProducts(initialProducts || []));
-      setShoppers(initialShoppers || []);
-      setShoppingLists(initialShoppingLists || []);
+      try {
+        const { data: initialProducts, error: productsError } = await supabase.from('products').select('*');
+        if (productsError) {
+          console.error("Error fetching products:", productsError);
+        } else {
+          console.log("Fetched products:", initialProducts?.length || 0);
+          setProducts(transformProducts(initialProducts || []));
+        }
+        
+        const { data: initialShoppers, error: shoppersError } = await supabase.from('shoppers').select('*');
+        if (shoppersError) {
+          console.error("Error fetching shoppers:", shoppersError);
+        } else {
+          console.log("Fetched shoppers:", initialShoppers);
+          setShoppers(initialShoppers || []);
+        }
+        
+        const { data: initialShoppingLists, error: listsError } = await supabase.from('shopping_list').select('*');
+        if (listsError) {
+          console.error("Error fetching shopping lists:", listsError);
+        } else {
+          console.log("Fetched shopping lists:", initialShoppingLists?.length || 0);
+          setShoppingLists(initialShoppingLists || []);
+        }
+      } catch (error) {
+        console.error("Error in fetchInitialData:", error);
+      }
     };
     
     fetchInitialData();
