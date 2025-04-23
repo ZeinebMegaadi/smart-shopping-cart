@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,18 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
   }, [initialProducts]);
   
   const filteredProducts = products.filter(
-    (product) =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcodeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.subcategory.toLowerCase().includes(searchTerm.toLowerCase())
+    (product) => {
+      // Ensure product and its properties exist before accessing them
+      if (!product) return false;
+      
+      const searchLower = searchTerm.toLowerCase();
+      const nameMatch = product.name ? product.name.toLowerCase().includes(searchLower) : false;
+      const barcodeMatch = product.barcodeId ? product.barcodeId.toLowerCase().includes(searchLower) : false;
+      const categoryMatch = product.category ? product.category.toLowerCase().includes(searchLower) : false;
+      const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
+      
+      return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
+    }
   );
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
@@ -190,8 +198,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         <div className="h-10 w-10 flex-shrink-0 mr-4">
                           <img
                             className="h-10 w-10 rounded object-cover"
-                            src={product.image}
-                            alt={product.name}
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.name || "Product"}
                           />
                         </div>
                         <Input
@@ -208,12 +216,12 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         <div className="h-10 w-10 flex-shrink-0">
                           <img
                             className="h-10 w-10 rounded object-cover"
-                            src={product.image}
-                            alt={product.name}
+                            src={product.image || "/placeholder.svg"}
+                            alt={product.name || "Product"}
                           />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium">{product.name}</div>
+                          <div className="text-sm font-medium">{product.name || "Unnamed Product"}</div>
                         </div>
                       </div>
                     )}
@@ -229,7 +237,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className="text-sm">{product.barcodeId}</div>
+                      <div className="text-sm">{product.barcodeId || "N/A"}</div>
                     )}
                   </TableCell>
                   
@@ -243,7 +251,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className="text-sm">{product.category}</div>
+                      <div className="text-sm">{product.category || "N/A"}</div>
                     )}
                   </TableCell>
                   
@@ -257,7 +265,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className="text-sm">{product.subcategory}</div>
+                      <div className="text-sm">{product.subcategory || "N/A"}</div>
                     )}
                   </TableCell>
                   
@@ -271,7 +279,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className="text-sm">{product.aisle}</div>
+                      <div className="text-sm">{product.aisle || "N/A"}</div>
                     )}
                   </TableCell>
                   
@@ -286,7 +294,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className="text-sm">{product.price.toFixed(2)}</div>
+                      <div className="text-sm">{product.price?.toFixed(2) || "0.00"}</div>
                     )}
                   </TableCell>
                   
@@ -301,8 +309,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
                         })}
                       />
                     ) : (
-                      <div className={`text-sm ${product.quantityInStock < 50 ? "text-red-500 font-medium" : ""}`}>
-                        {product.quantityInStock}
+                      <div className={`text-sm ${(product.quantityInStock !== undefined && product.quantityInStock < 50) ? "text-red-500 font-medium" : ""}`}>
+                        {product.quantityInStock !== undefined ? product.quantityInStock : "N/A"}
                       </div>
                     )}
                   </TableCell>

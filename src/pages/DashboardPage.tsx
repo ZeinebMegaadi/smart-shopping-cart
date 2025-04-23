@@ -6,13 +6,29 @@ import UserManagement from "@/components/dashboard/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Package2, Activity, Grid2X2, Users } from "lucide-react";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
+import { Product } from "@/services/mockData";
+
+const transformProducts = (dbProducts: any[]): Product[] => {
+  return dbProducts.map(item => ({
+    id: `product_${item['Barcode ID'] || Date.now()}`,
+    name: item.Product || '',
+    description: '',
+    image: item['image-url'] || '/placeholder.svg',
+    barcodeId: String(item['Barcode ID'] || ''),
+    category: item.Category || '',
+    subcategory: item.Subcategory || '',
+    aisle: item.Aisle || '',
+    price: item.Price || 0,
+    quantityInStock: item.Stock || 0,
+  }));
+};
 
 const DashboardPage = () => {
   const { isAuthenticated, userRole } = useAuthStatus();
   const [activeTab, setActiveTab] = useState("overview");
   const [isVisible, setIsVisible] = useState(false);
   
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [shoppers, setShoppers] = useState([]);
   const [shoppingLists, setShoppingLists] = useState([]);
   
@@ -28,18 +44,18 @@ const DashboardPage = () => {
           console.log('Change received:', payload);
           switch(payload.eventType) {
             case 'INSERT':
-              setProducts(prev => [...prev, payload.new]);
+              setProducts(prev => [...prev, transformProducts([payload.new])[0]]);
               break;
             case 'UPDATE':
               setProducts(prev => 
                 prev.map(item => 
-                  item.id === payload.old.id ? payload.new : item
+                  item.id === `product_${payload.old['Barcode ID']}` ? transformProducts([payload.new])[0] : item
                 )
               );
               break;
             case 'DELETE':
               setProducts(prev => 
-                prev.filter(item => item.id !== payload.old.id)
+                prev.filter(item => item.id !== `product_${payload.old['Barcode ID']}`)
               );
               break;
           }
@@ -100,7 +116,7 @@ const DashboardPage = () => {
       const { data: initialShoppers } = await supabase.from('Shoppers').select('*');
       const { data: initialShoppingLists } = await supabase.from('shopping_list').select('*');
       
-      setProducts(initialProducts || []);
+      setProducts(transformProducts(initialProducts || []));
       setShoppers(initialShoppers || []);
       setShoppingLists(initialShoppingLists || []);
     };
