@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -63,7 +64,7 @@ const DashboardPage = () => {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'Shoppers' },
+        { event: '*', schema: 'public', table: 'shoppers' },
         (payload) => {
           console.log('Shopper Change received:', payload);
           switch(payload.eventType) {
@@ -113,7 +114,7 @@ const DashboardPage = () => {
     
     const fetchInitialData = async () => {
       const { data: initialProducts } = await supabase.from('products').select('*');
-      const { data: initialShoppers } = await supabase.from('Shoppers').select('*');
+      const { data: initialShoppers } = await supabase.from('shoppers').select('*');
       const { data: initialShoppingLists } = await supabase.from('shopping_list').select('*');
       
       setProducts(transformProducts(initialProducts || []));

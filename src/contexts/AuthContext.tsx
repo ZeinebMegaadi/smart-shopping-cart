@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -44,7 +45,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.log("User role determined: shopper");
       // Ensure shopper record exists
       const { data: shopperData, error } = await supabase
-        .from('Shoppers')
+        .from('shoppers')
         .select('id')
         .eq('id', userId)
         .single();
@@ -52,7 +53,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (!shopperData) {
         // Insert shopper if not exists
         const { error: insertError } = await supabase
-          .from('Shoppers')
+          .from('shoppers')
           .insert([{ 
             id: userId, 
             email: email || '', 
