@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -11,21 +12,19 @@ import {
 import { 
   Card, 
   CardContent,
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield } from "lucide-react";
+import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield, list, ListCheck, ShoppingCart } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface ShoppingItem {
   id: string;
-  name: string;
-  aisle: string;
+  name?: string;
+  aisle?: string;
   checked: boolean;
+  product_id?: number;
 }
 
 interface Shopper {
@@ -34,6 +33,7 @@ interface Shopper {
   rfid_tag?: string | null;
   name?: string;
   rfidCardId?: string;
+  username?: string;
   shoppingList?: ShoppingItem[];
 }
 
@@ -57,60 +57,65 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [activeTab, setActiveTab] = useState<"shoppers" | "owners">("shoppers");
   const [isLoading, setIsLoading] = useState(true);
+  const [productData, setProductData] = useState<{[key: string]: any}>({});
   
+  // Process initial shoppers data
   useEffect(() => {
-    console.log("Initial shoppers data (UserManagement):", initialShoppers);
-    
-    if (initialShoppers && Array.isArray(initialShoppers)) {
+    console.log("Initial shoppers data received in UserManagement:", initialShoppers);
+    if (initialShoppers && Array.isArray(initialShoppers) && initialShoppers.length > 0) {
       const processedShoppers = initialShoppers.map(shopper => ({
         id: shopper.id,
-        name: shopper.name || shopper.email?.split('@')[0] || 'Unknown',
+        name: shopper.username || shopper.name || shopper.email?.split('@')[0] || 'Unknown',
         email: shopper.email || 'No email',
         rfidCardId: shopper.rfidCardId || shopper.rfid_tag || 'N/A',
         rfid_tag: shopper.rfid_tag,
         shoppingList: shopper.shoppingList || []
       }));
       
-      console.log("Processed shoppers (UserManagement):", processedShoppers);
+      console.log("Processed shoppers in UserManagement:", processedShoppers);
       setShoppers(processedShoppers);
-    } else {
-      console.error("initialShoppers is not an array:", initialShoppers);
-      setShoppers([]);
+      setIsLoading(false);
     }
   }, [initialShoppers]);
 
+  // Fetch shoppers directly if needed
   useEffect(() => {
     const fetchShoppers = async () => {
+      if (initialShoppers && initialShoppers.length > 0) {
+        console.log("Using initial shoppers data, skipping direct fetch");
+        return;
+      }
+      
       setIsLoading(true);
       try {
-        console.log("Fetching shoppers from database (UserManagement)...");
+        console.log("Fetching shoppers directly from database...");
         const { data, error } = await supabase
           .from('shoppers')
           .select('*');
         
         if (error) {
-          console.error("Error fetching shoppers (UserManagement):", error);
+          console.error("Error fetching shoppers:", error);
           toast({
             title: "Error fetching shoppers",
             description: error.message,
             variant: "destructive"
           });
-          setIsLoading(false);
           return;
         }
         
-        console.log("Direct shoppers fetch result (UserManagement):", data);
+        console.log("Direct shoppers fetch result:", data);
         
         if (data && Array.isArray(data)) {
           const processedShoppers = data.map(shopper => ({
             id: shopper.id,
-            name: shopper.email?.split('@')[0] || 'Unknown',
+            name: shopper.username || shopper.email?.split('@')[0] || 'Unknown',
             email: shopper.email || 'No email',
             rfidCardId: shopper.rfid_tag || 'N/A',
             rfid_tag: shopper.rfid_tag,
             shoppingList: [] as ShoppingItem[]
           }));
           
+          // Fetch shopping lists for each shopper
           for (const shopper of processedShoppers) {
             try {
               const { data: listData } = await supabase
@@ -118,24 +123,31 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                 .select('*')
                 .eq('shopper_id', shopper.id);
                 
-              if (listData) {
+              if (listData && Array.isArray(listData)) {
                 shopper.shoppingList = listData.map(item => ({
                   id: item.id,
-                  name: item.product_id.toString(),
-                  aisle: 'N/A',
+                  product_id: item.product_id,
+                  aisle: 'Fetching...',
                   checked: item.scanned || false
                 }));
+                
+                // Get product details for each item
+                for (const item of shopper.shoppingList) {
+                  if (item.product_id) {
+                    await fetchProductDetails(item.product_id, item);
+                  }
+                }
               }
             } catch (listError) {
               console.error(`Error fetching shopping list for shopper ${shopper.id}:`, listError);
             }
           }
           
-          console.log("Fully processed shoppers with lists (UserManagement):", processedShoppers);
+          console.log("Fully processed shoppers with lists:", processedShoppers);
           setShoppers(processedShoppers);
         }
       } catch (error) {
-        console.error("Unexpected error in fetchShoppers (UserManagement):", error);
+        console.error("Unexpected error in fetchShoppers:", error);
         toast({
           title: "Error loading shoppers",
           description: "Failed to load shopper data",
@@ -147,8 +159,42 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     };
     
     fetchShoppers();
-  }, []);
-
+  }, [initialShoppers]);
+  
+  // Fetch product details to associate with shopping list items
+  const fetchProductDetails = async (productId: number, item: ShoppingItem) => {
+    if (productData[productId]) {
+      item.name = productData[productId].Product;
+      item.aisle = productData[productId].Aisle;
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('Barcode ID', productId)
+        .single();
+        
+      if (error) {
+        console.error(`Error fetching product ${productId}:`, error);
+        return;
+      }
+      
+      if (data) {
+        // Cache the product data
+        setProductData(prev => ({ ...prev, [productId]: data }));
+        
+        // Update the item
+        item.name = data.Product;
+        item.aisle = data.Aisle;
+      }
+    } catch (error) {
+      console.error(`Error fetching product ${productId}:`, error);
+    }
+  };
+  
+  // Fetch owners data
   useEffect(() => {
     const fetchOwners = async () => {
       try {
@@ -176,7 +222,9 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
     fetchOwners();
   }, []);
 
+  // Set up real-time subscription for shoppers and shopping list changes
   useEffect(() => {
+    // Shoppers channel
     const shoppersChannel = supabase
       .channel('custom-shoppers-channel')
       .on(
@@ -188,7 +236,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
             const newShopper: Shopper = {
               id: payload.new.id,
               email: payload.new.email || 'No email',
-              name: payload.new.email?.split('@')[0] || 'Unknown',
+              name: payload.new.username || payload.new.email?.split('@')[0] || 'Unknown',
               rfidCardId: payload.new.rfid_tag || 'N/A',
               rfid_tag: payload.new.rfid_tag,
               shoppingList: []
@@ -200,6 +248,90 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
               title: "New shopper added",
               description: `${payload.new.email} has joined`,
             });
+          } else if (payload.eventType === 'UPDATE') {
+            setShoppers(prev => 
+              prev.map(shopper => 
+                shopper.id === payload.new.id 
+                ? {
+                    ...shopper,
+                    email: payload.new.email || shopper.email,
+                    name: payload.new.username || payload.new.email?.split('@')[0] || shopper.name,
+                    rfidCardId: payload.new.rfid_tag || shopper.rfidCardId,
+                    rfid_tag: payload.new.rfid_tag
+                  }
+                : shopper
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setShoppers(prev => prev.filter(shopper => shopper.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+      
+    // Shopping list channel
+    const shoppingListChannel = supabase
+      .channel('shopping-list-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_list' },
+        async (payload) => {
+          console.log('Shopping list change received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            const shopperId = payload.new.shopper_id;
+            const newItem: ShoppingItem = {
+              id: payload.new.id,
+              product_id: payload.new.product_id,
+              checked: payload.new.scanned || false
+            };
+            
+            // Fetch product details for the new item
+            if (newItem.product_id) {
+              await fetchProductDetails(newItem.product_id, newItem);
+            }
+            
+            setShoppers(prev => 
+              prev.map(shopper => {
+                if (shopper.id === shopperId) {
+                  return {
+                    ...shopper,
+                    shoppingList: [...(shopper.shoppingList || []), newItem]
+                  };
+                }
+                return shopper;
+              })
+            );
+          } else if (payload.eventType === 'UPDATE') {
+            const shopperId = payload.new.shopper_id;
+            setShoppers(prev => 
+              prev.map(shopper => {
+                if (shopper.id === shopperId && shopper.shoppingList) {
+                  return {
+                    ...shopper,
+                    shoppingList: shopper.shoppingList.map(item => 
+                      item.id === payload.new.id 
+                        ? { ...item, checked: payload.new.scanned || false }
+                        : item
+                    )
+                  };
+                }
+                return shopper;
+              })
+            );
+          } else if (payload.eventType === 'DELETE') {
+            const shopperId = payload.old.shopper_id;
+            setShoppers(prev => 
+              prev.map(shopper => {
+                if (shopper.id === shopperId && shopper.shoppingList) {
+                  return {
+                    ...shopper,
+                    shoppingList: shopper.shoppingList.filter(item => item.id !== payload.old.id)
+                  };
+                }
+                return shopper;
+              })
+            );
           }
         }
       )
@@ -207,6 +339,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
 
     return () => {
       supabase.removeChannel(shoppersChannel);
+      supabase.removeChannel(shoppingListChannel);
     };
   }, []);
   
@@ -282,6 +415,81 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
+  // Refresh data function
+  const refreshData = async () => {
+    setIsLoading(true);
+    try {
+      console.log("Manually refreshing shopper data...");
+      
+      const { data, error } = await supabase.from('shoppers').select('*');
+      if (error) {
+        console.error("Error refreshing shoppers:", error);
+        toast({
+          title: "Refresh failed",
+          description: "Could not refresh shoppers data",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("Refresh result:", data);
+      
+      if (data && Array.isArray(data)) {
+        const processedShoppers = data.map(shopper => ({
+          id: shopper.id,
+          name: shopper.username || shopper.email?.split('@')[0] || 'Unknown',
+          email: shopper.email || 'No email',
+          rfidCardId: shopper.rfid_tag || 'N/A',
+          rfid_tag: shopper.rfid_tag,
+          shoppingList: [] as ShoppingItem[]
+        }));
+        
+        // Fetch shopping lists for each shopper
+        for (const shopper of processedShoppers) {
+          try {
+            const { data: listData } = await supabase
+              .from('shopping_list')
+              .select('*')
+              .eq('shopper_id', shopper.id);
+              
+            if (listData && Array.isArray(listData)) {
+              shopper.shoppingList = listData.map(item => ({
+                id: item.id,
+                product_id: item.product_id,
+                checked: item.scanned || false
+              }));
+              
+              // Get product details for each item
+              for (const item of shopper.shoppingList) {
+                if (item.product_id) {
+                  await fetchProductDetails(item.product_id, item);
+                }
+              }
+            }
+          } catch (listError) {
+            console.error(`Error fetching shopping list for shopper ${shopper.id}:`, listError);
+          }
+        }
+        
+        console.log("Refreshed shoppers with lists:", processedShoppers);
+        setShoppers(processedShoppers);
+        toast({
+          title: "Data refreshed",
+          description: "Shoppers data has been updated"
+        });
+      }
+    } catch (error) {
+      console.error("Error in refresh:", error);
+      toast({
+        title: "Refresh failed",
+        description: "An error occurred while refreshing data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between gap-4 items-center">
@@ -290,26 +498,32 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
           <p className="text-muted-foreground">View and manage user accounts and shopping lists</p>
         </div>
         
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Button onClick={refreshData} disabled={isLoading}>
+            {isLoading ? "Refreshing..." : "Refresh Data"}
+          </Button>
         </div>
       </div>
       
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "shoppers" | "owners")}>
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="shoppers" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            <span>Shoppers</span>
+            <ShoppingCart className="h-4 w-4" />
+            <span>Shoppers ({filteredShoppers.length})</span>
           </TabsTrigger>
           <TabsTrigger value="owners" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            <span>Store Owners</span>
+            <span>Store Owners ({filteredOwners.length})</span>
           </TabsTrigger>
         </TabsList>
 
@@ -383,7 +597,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                               <TableCell>
                                 {hasShoppingList ? (
                                   <div className="flex w-8 h-8 items-center justify-center bg-primary/10 text-primary rounded-full">
-                                    <UserCheck size={16} />
+                                    <ListCheck size={16} />
                                   </div>
                                 ) : (
                                   <div className="flex w-8 h-8 items-center justify-center bg-muted/50 text-muted-foreground rounded-full">
@@ -449,7 +663,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                                               <p className={`font-medium ${
                                                 item.checked ? 'line-through text-muted-foreground' : ''
                                               }`}>
-                                                {item.name || 'Unnamed item'}
+                                                {item.name || `Product ID: ${item.product_id}` || 'Unnamed item'}
                                               </p>
                                               <p className="text-xs text-muted-foreground">
                                                 Aisle: {item.aisle || 'Unknown'}
@@ -472,33 +686,21 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8">
                           <p className="text-muted-foreground">
-                            {searchTerm ? 'No shoppers found matching your search' : 'No shoppers in the database'}
+                            {searchTerm 
+                              ? 'No shoppers found matching your search' 
+                              : isLoading 
+                                ? 'Loading shoppers data...' 
+                                : 'No shoppers in the database'
+                            }
                           </p>
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="mt-2"
-                            onClick={() => {
-                              console.log("Refreshing shopper data...");
-                              const fetchShoppers = async () => {
-                                const { data } = await supabase.from('shoppers').select('*');
-                                console.log("Refresh result:", data);
-                                if (data && data.length > 0) {
-                                  const processedShoppers = data.map(shopper => ({
-                                    id: shopper.id,
-                                    name: shopper.email?.split('@')[0] || 'Unknown',
-                                    email: shopper.email || 'No email',
-                                    rfidCardId: shopper.rfid_tag || 'N/A',
-                                    rfid_tag: shopper.rfid_tag,
-                                    shoppingList: [] as ShoppingItem[]
-                                  }));
-                                  setShoppers(processedShoppers);
-                                }
-                              };
-                              fetchShoppers();
-                            }}
+                            onClick={refreshData}
+                            disabled={isLoading}
                           >
-                            Refresh Data
+                            {isLoading ? "Refreshing..." : "Refresh Data"}
                           </Button>
                         </TableCell>
                       </TableRow>

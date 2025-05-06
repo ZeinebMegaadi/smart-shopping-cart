@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
@@ -14,6 +15,7 @@ const transformProducts = (dbProducts: any[]): Product[] => {
     id: `product_${item['Barcode ID'] || Date.now()}`,
     name: item.Product || '',
     description: '',
+    // Use image-url field if available, fallback to placeholder
     image: item['image-url'] || '/placeholder.svg',
     barcodeId: String(item['Barcode ID'] || ''),
     category: item.Category || '',
@@ -61,10 +63,33 @@ const DashboardPage = () => {
           });
         } else {
           console.log("Fetched shoppers data:", shoppersData);
-          setShoppers(shoppersData || []);
+          if (Array.isArray(shoppersData)) {
+            setShoppers(shoppersData);
+            console.log("Updated shoppers state with:", shoppersData.length, "items");
+            
+            // Fetch shopping lists for each shopper
+            for (const shopper of shoppersData) {
+              try {
+                const { data: shopperLists, error: listError } = await supabase
+                  .from('shopping_list')
+                  .select('*')
+                  .eq('shopper_id', shopper.id);
+                  
+                if (listError) {
+                  console.error(`Error fetching lists for shopper ${shopper.id}:`, listError);
+                } else {
+                  console.log(`Fetched ${shopperLists?.length || 0} list items for shopper ${shopper.id}`);
+                }
+              } catch (err) {
+                console.error("Error in shopping list fetch:", err);
+              }
+            }
+          } else {
+            console.error("Shoppers data is not an array:", shoppersData);
+          }
         }
         
-        // Fetch shopping lists
+        // Fetch all shopping lists
         const { data: initialShoppingLists, error: listsError } = await supabase.from('shopping_list').select('*');
         if (listsError) {
           console.error("Error fetching shopping lists:", listsError);
@@ -94,6 +119,10 @@ const DashboardPage = () => {
           console.log('Shoppers change received:', payload);
           if (payload.eventType === 'INSERT') {
             setShoppers((prev) => [...prev, payload.new]);
+            toast({
+              title: "New shopper added",
+              description: `${payload.new.email || "New user"} has been added`,
+            });
           } else if (payload.eventType === 'UPDATE') {
             setShoppers((prev) =>
               prev.map((shopper) =>
@@ -108,9 +137,35 @@ const DashboardPage = () => {
         }
       )
       .subscribe();
+      
+    // Set up real-time subscription for shopping_list table
+    const shoppingListChannel = supabase
+      .channel('shopping-list-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shopping_list' },
+        (payload) => {
+          console.log('Shopping list change received:', payload);
+          if (payload.eventType === 'INSERT') {
+            setShoppingLists((prev) => [...prev, payload.new]);
+          } else if (payload.eventType === 'UPDATE') {
+            setShoppingLists((prev) =>
+              prev.map((item) =>
+                item.id === payload.old.id ? payload.new : item
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setShoppingLists((prev) =>
+              prev.filter((item) => item.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(shoppersChannel);
+      supabase.removeChannel(shoppingListChannel);
     };
   }, []);
 

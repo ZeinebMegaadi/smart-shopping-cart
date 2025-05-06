@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/services/mockData";
 import { Plus, Minus, ShoppingCart, Sparkles } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
+import { toast } from "@/components/ui/use-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +16,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const [quantity, setQuantity] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart } = useCart();
+  const { isAuthenticated, userId } = useAuthStatus();
   
   const incrementQuantity = () => {
     if (quantity < product.quantityInStock) {
@@ -26,9 +30,48 @@ const ProductCard = ({ product }: ProductCardProps) => {
     }
   };
   
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     addToCart(product, quantity);
     setQuantity(1);
+    
+    // Sync with Supabase shopping list for logged-in shoppers
+    if (isAuthenticated && userId) {
+      try {
+        // Check if the product is already in the user's shopping list
+        const { data: existingItems } = await supabase
+          .from('shopping_list')
+          .select('*')
+          .eq('shopper_id', userId)
+          .eq('product_id', Number(product.barcodeId));
+        
+        if (!existingItems || existingItems.length === 0) {
+          // Add to shopping list if not already there
+          const { error } = await supabase
+            .from('shopping_list')
+            .insert({
+              shopper_id: userId,
+              product_id: Number(product.barcodeId),
+              scanned: false
+            });
+          
+          if (error) {
+            console.error('Error adding item to shopping list:', error);
+          } else {
+            toast({
+              title: "Added to shopping list",
+              description: `${product.name} has been added to your shopping list`,
+            });
+          }
+        } else {
+          toast({
+            title: "Item already in list",
+            description: `${product.name} is already in your shopping list`,
+          });
+        }
+      } catch (error) {
+        console.error('Error syncing with shopping list:', error);
+      }
+    }
   };
   
   return (

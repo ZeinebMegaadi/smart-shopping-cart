@@ -63,18 +63,24 @@ export type Database = {
           id: string
           rfid_tag: string | null
           "shopping-list": string | null
+          timestamp: string | null
+          username: string | null
         }
         Insert: {
           email: string
           id: string
           rfid_tag?: string | null
           "shopping-list"?: string | null
+          timestamp?: string | null
+          username?: string | null
         }
         Update: {
           email?: string
           id?: string
           rfid_tag?: string | null
           "shopping-list"?: string | null
+          timestamp?: string | null
+          username?: string | null
         }
         Relationships: [
           {
