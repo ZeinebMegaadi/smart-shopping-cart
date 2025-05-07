@@ -226,26 +226,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
-    setIsLoading(true);
     try {
+      setIsLoading(true);
       console.log("Logging out user");
-      authCheckComplete.current = false;
       
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error("Logout error:", error);
-        throw error;
-      }
-      
+      // First clear local state to ensure UI updates quickly
       setUserRole(null);
       setCurrentUser(null);
       setSession(null);
       
-      toast({
-        title: "Logged out",
-        description: "You have been logged out successfully",
-      });
+      // Then attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Logout error:", error);
+        toast({
+          title: "Logout failed",
+          description: error.message || "An error occurred while logging out",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Logged out",
+          description: "You have been logged out successfully",
+        });
+      }
     } catch (error: any) {
       console.error("Logout failed:", error);
       toast({
