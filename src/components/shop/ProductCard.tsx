@@ -16,7 +16,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const [quantity, setQuantity] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
   const { addToCart } = useCart();
-  const { isAuthenticated, userId } = useAuthStatus();
+  const { isAuthenticated } = useAuthStatus();
   
   const incrementQuantity = () => {
     if (quantity < product.quantityInStock) {
@@ -35,38 +35,44 @@ const ProductCard = ({ product }: ProductCardProps) => {
     setQuantity(1);
     
     // Sync with Supabase shopping list for logged-in shoppers
-    if (isAuthenticated && userId) {
+    if (isAuthenticated) {
       try {
-        // Check if the product is already in the user's shopping list
-        const { data: existingItems } = await supabase
-          .from('shopping_list')
-          .select('*')
-          .eq('shopper_id', userId)
-          .eq('product_id', Number(product.barcodeId));
+        // Get current user
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
         
-        if (!existingItems || existingItems.length === 0) {
-          // Add to shopping list if not already there
-          const { error } = await supabase
+        if (userId) {
+          // Check if the product is already in the user's shopping list
+          const { data: existingItems } = await supabase
             .from('shopping_list')
-            .insert({
-              shopper_id: userId,
-              product_id: Number(product.barcodeId),
-              scanned: false
-            });
+            .select('*')
+            .eq('shopper_id', userId)
+            .eq('product_id', Number(product.barcodeId));
           
-          if (error) {
-            console.error('Error adding item to shopping list:', error);
+          if (!existingItems || existingItems.length === 0) {
+            // Add to shopping list if not already there
+            const { error } = await supabase
+              .from('shopping_list')
+              .insert({
+                shopper_id: userId,
+                product_id: Number(product.barcodeId),
+                scanned: false
+              });
+            
+            if (error) {
+              console.error('Error adding item to shopping list:', error);
+            } else {
+              toast({
+                title: "Added to shopping list",
+                description: `${product.name} has been added to your shopping list`,
+              });
+            }
           } else {
             toast({
-              title: "Added to shopping list",
-              description: `${product.name} has been added to your shopping list`,
+              title: "Item already in list",
+              description: `${product.name} is already in your shopping list`,
             });
           }
-        } else {
-          toast({
-            title: "Item already in list",
-            description: `${product.name} is already in your shopping list`,
-          });
         }
       } catch (error) {
         console.error('Error syncing with shopping list:', error);

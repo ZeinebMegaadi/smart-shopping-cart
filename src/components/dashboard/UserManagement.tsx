@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield, list, ListCheck, ShoppingCart } from "lucide-react";
+import { Search, UserCheck, UserX, ChevronDown, ChevronUp, Shield, List, ListCheck, ShoppingCart } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface ShoppingItem {
