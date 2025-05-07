@@ -27,9 +27,13 @@ const CartItemCard = ({ item }: CartItemCardProps) => {
     <div className="flex items-center border-b border-gray-200 py-4">
       <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
         <img
-          src={product.image}
+          src={product["image-url"] || product.image || '/placeholder.svg'}
           alt={product.name}
           className="h-full w-full object-cover object-center"
+          onError={(e) => {
+            // If image fails to load, replace with placeholder
+            e.currentTarget.src = '/placeholder.svg';
+          }}
         />
       </div>
       

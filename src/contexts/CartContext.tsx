@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
 
 export interface CartItem {
   product: Product;
@@ -23,6 +25,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuthStatus();
 
   // Load cart from localStorage on initial render
   useEffect(() => {
@@ -72,12 +75,36 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const removeFromCart = (productId: string) => {
+  const removeFromCart = async (productId: string) => {
+    const itemToRemove = items.find((item) => item.product.id === productId);
+    
+    // First, remove from Supabase if user is authenticated
+    if (isAuthenticated && itemToRemove) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        
+        if (userId) {
+          // Delete item from shopping_list in Supabase
+          const { error } = await supabase
+            .from('shopping_list')
+            .delete()
+            .eq('shopper_id', userId)
+            .eq('product_id', Number(itemToRemove.product.barcodeId));
+            
+          if (error) {
+            console.error('Error removing item from shopping list:', error);
+          } else {
+            console.log('Item successfully removed from shopping list in Supabase');
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing with shopping list:', error);
+      }
+    }
+    
+    // Then, remove from local cart
     setItems((prevItems) => {
-      const itemToRemove = prevItems.find(
-        (item) => item.product.id === productId
-      );
-      
       if (itemToRemove) {
         toast({
           title: "Removed from cart",
@@ -102,7 +129,31 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
+    // Clear from Supabase if user is authenticated
+    if (isAuthenticated) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        
+        if (userId) {
+          // Delete all items from shopping_list for this user in Supabase
+          const { error } = await supabase
+            .from('shopping_list')
+            .delete()
+            .eq('shopper_id', userId);
+            
+          if (error) {
+            console.error('Error clearing shopping list:', error);
+          } else {
+            console.log('Shopping list successfully cleared in Supabase');
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing with shopping list:', error);
+      }
+    }
+    
     setItems([]);
     toast({
       title: "Cart cleared",
