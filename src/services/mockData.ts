@@ -1,3 +1,4 @@
+
 // Mock data for the Smart Shopping Cart application
 
 export interface Product {
@@ -5,6 +6,7 @@ export interface Product {
   name: string;
   description: string;
   image: string;
+  "image-url"?: string;  // Added the image-url property from Supabase
   barcodeId: string;
   category: string;
   subcategory: string;

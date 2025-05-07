@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
@@ -80,6 +79,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
     }
   };
   
+  // Use the image URL from the Supabase database if available, otherwise fall back to default
+  const productImage = product["image-url"] || product.image || '/placeholder.svg';
+  
   return (
     <div 
       className="product-card overflow-hidden group"
@@ -88,9 +90,13 @@ const ProductCard = ({ product }: ProductCardProps) => {
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
         <img 
-          src={product.image} 
+          src={productImage} 
           alt={product.name}
           className="object-cover w-full h-full transition-all duration-500 group-hover:scale-110"
+          onError={(e) => {
+            // If image fails to load, replace with placeholder
+            e.currentTarget.src = '/placeholder.svg';
+          }}
         />
         
         {/* Popular badge with animation */}
