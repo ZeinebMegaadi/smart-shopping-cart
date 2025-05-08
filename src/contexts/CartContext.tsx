@@ -498,7 +498,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(allItems));
   }, [items, scannedItems]);
 
-  // Fixed addToCart function to prevent duplicate items
+  // Fixed addToCart function to correctly check for existing products
   const addToCart = async (product: Product, quantity = 1) => {
     console.log("Adding to cart:", product, "quantity:", quantity);
     
@@ -547,54 +547,89 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           if (userId) {
             console.log("User is authenticated, checking if product exists in DB");
             
-            // Check if the product is already in the shopping list to prevent duplicates
-            const { data: existingItems } = await supabase
+            // First, check if the product exists in products table
+            const { data: productExists, error: productError } = await supabase
+              .from('products')
+              .select('id')
+              .eq('id', Number(product.id))
+              .single();
+            
+            if (productError && productError.code !== 'PGRST116') {
+              console.error('Error checking product existence:', productError);
+              toast({
+                title: "Database Error",
+                description: `Error checking product: ${productError.message}`,
+                variant: "destructive"
+              });
+              return;
+            }
+
+            if (!productExists) {
+              console.log("Product not found in products table, skipping server sync");
+              toast({
+                title: "Local Only",
+                description: `${product.name} added locally only (not found in database)`,
+              });
+              return;
+            }
+            
+            // Then check if the item is already in user's shopping list
+            const { data: existingItems, error: listError } = await supabase
               .from('shopping_list')
               .select('*')
               .eq('shopper_id', userId)
               .eq('product_id', Number(product.id));
             
+            if (listError) {
+              console.error('Error checking shopping list:', listError);
+              toast({
+                title: "Sync Error", 
+                description: `Error checking shopping list: ${listError.message}`,
+                variant: "destructive"
+              });
+              return;
+            }
+            
             if (!existingItems || existingItems.length === 0) {
-              console.log("Product not in shopping list, checking if product exists in products table");
+              console.log("Product exists but not in shopping list, adding to DB");
+              // Product exists in products table but not in shopping list, add it
+              const { error } = await supabase
+                .from('shopping_list')
+                .insert({
+                  shopper_id: userId,
+                  product_id: Number(product.id),
+                  scanned: false
+                });
               
-              // Check if product exists in products table
-              const { data: productExists } = await supabase
-                .from('products')
-                .select('id')
-                .eq('id', Number(product.id))
-                .single();
-              
-              if (productExists) {
-                console.log("Product exists in DB, adding to shopping list");
-                const { error } = await supabase
-                  .from('shopping_list')
-                  .insert({
-                    shopper_id: userId,
-                    product_id: Number(product.id),
-                    scanned: false
-                  });
-                
-                if (error) {
-                  console.error('Error adding item to shopping list:', error);
-                  toast({
-                    title: "Sync Error",
-                    description: `Could not sync ${product.name} with server: ${error.message}`,
-                    variant: "destructive"
-                  });
-                }
-              } else {
-                console.log("Product not found in DB, skipping server sync");
+              if (error) {
+                console.error('Error adding item to shopping list:', error);
                 toast({
-                  title: "Local Only",
-                  description: `${product.name} added locally only (not found in database)`,
+                  title: "Sync Error",
+                  description: `Could not sync ${product.name} with server: ${error.message}`,
+                  variant: "destructive"
+                });
+              } else {
+                toast({
+                  title: "Synced",
+                  description: `${product.name} added to your shopping list`,
                 });
               }
             } else {
               console.log("Product already exists in shopping list, not inserting again");
+              toast({
+                title: "Already in List",
+                description: `${product.name} is already in your shopping list`,
+                variant: "info"
+              });
             }
           }
         } catch (error) {
           console.error('Error syncing with shopping list:', error);
+          toast({
+            title: "Sync Error",
+            description: "Failed to sync with server. Item added locally only.",
+            variant: "destructive"
+          });
         }
       }
     }

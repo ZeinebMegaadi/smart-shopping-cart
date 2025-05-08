@@ -38,6 +38,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
     setIsAdding(true);
     
     try {
+      // Pass the full product to addToCart
       await addToCart(product, quantity);
       setQuantity(1); // Reset quantity after adding
     } catch (error) {
