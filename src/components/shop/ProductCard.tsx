@@ -15,6 +15,7 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const [quantity, setQuantity] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuthStatus();
   const { toast } = useToast();
@@ -32,8 +33,23 @@ const ProductCard = ({ product }: ProductCardProps) => {
   };
   
   const handleAddToCart = async () => {
-    addToCart(product, quantity);
-    setQuantity(1);
+    if (isAdding) return; // Prevent double-clicks
+    
+    setIsAdding(true);
+    
+    try {
+      await addToCart(product, quantity);
+      setQuantity(1); // Reset quantity after adding
+    } catch (error) {
+      console.error("Error adding product to cart:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add product to cart. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAdding(false);
+    }
   };
   
   // Use the image URL from the product object, falling back to placeholder
