@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
@@ -298,17 +299,38 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .eq('product_id', Number(product.barcodeId));
           
           if (!existingItems || existingItems.length === 0) {
-            // Add to shopping list if not already there
-            const { error } = await supabase
-              .from('shopping_list')
-              .insert({
-                shopper_id: userId,
-                product_id: Number(product.barcodeId),
-                scanned: false
-              });
+            // Verify that product exists in products table first
+            const { data: productExists } = await supabase
+              .from('products')
+              .select('id')
+              .eq('id', Number(product.barcodeId))
+              .single();
             
-            if (error) {
-              console.error('Error adding item to shopping list:', error);
+            if (productExists) {
+              // Add to shopping list if not already there and product exists
+              const { error } = await supabase
+                .from('shopping_list')
+                .insert({
+                  shopper_id: userId,
+                  product_id: Number(product.barcodeId),
+                  scanned: false
+                });
+              
+              if (error) {
+                console.error('Error adding item to shopping list:', error);
+                toast({
+                  title: "Sync Error",
+                  description: `Could not sync ${product.name} with server: ${error.message}`,
+                  variant: "destructive"
+                });
+              }
+            } else {
+              console.error(`Product ${product.name} (ID: ${product.barcodeId}) does not exist in products table`);
+              toast({
+                title: "Product Error",
+                description: `This product doesn't exist in our database. It's available locally only.`,
+                variant: "destructive"
+              });
             }
           }
         }
