@@ -545,16 +545,23 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           const userId = session?.user?.id;
           
           if (userId) {
-            console.log("User is authenticated, checking if product exists in DB");
+            console.log(`User ${userId} is authenticated, checking if product ${product.id} exists in DB`);
             
             // First, check if the product exists in products table
+            // Using type conversion to ensure proper comparison
+            const productIdNumber = Number(product.id);
+            console.log(`Looking for product with ID (number): ${productIdNumber}`);
+            
             const { data: productExists, error: productError } = await supabase
               .from('products')
               .select('id')
-              .eq('id', Number(product.id))
-              .single();
+              .eq('id', productIdNumber)
+              .maybeSingle();
             
-            if (productError && productError.code !== 'PGRST116') {
+            // Log the full response for debugging
+            console.log('Product exists check response:', { productExists, productError });
+            
+            if (productError) {
               console.error('Error checking product existence:', productError);
               toast({
                 title: "Database Error",
@@ -565,7 +572,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             if (!productExists) {
-              console.log("Product not found in products table, skipping server sync");
+              console.log(`Product ID ${product.id} not found in products table, adding locally only`);
               toast({
                 title: "Local Only",
                 description: `${product.name} added locally only (not found in database)`,
@@ -574,11 +581,17 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             }
             
             // Then check if the item is already in user's shopping list
+            console.log(`Product exists in products table, checking if it's in user's shopping list`);
+            console.log(`Searching shopping_list for shopper_id=${userId} and product_id=${productIdNumber}`);
+            
             const { data: existingItems, error: listError } = await supabase
               .from('shopping_list')
               .select('*')
               .eq('shopper_id', userId)
-              .eq('product_id', Number(product.id));
+              .eq('product_id', productIdNumber);
+              
+            // Log the full shopping list response
+            console.log('Shopping list check response:', { existingItems, listError });
             
             if (listError) {
               console.error('Error checking shopping list:', listError);
@@ -591,15 +604,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             }
             
             if (!existingItems || existingItems.length === 0) {
-              console.log("Product exists but not in shopping list, adding to DB");
+              console.log(`Product exists but not in shopping list, adding to DB`);
               // Product exists in products table but not in shopping list, add it
-              const { error } = await supabase
+              const { data: insertData, error } = await supabase
                 .from('shopping_list')
                 .insert({
                   shopper_id: userId,
-                  product_id: Number(product.id),
+                  product_id: productIdNumber,
                   scanned: false
-                });
+                })
+                .select();
+              
+              // Log the insert operation result
+              console.log('Insert operation result:', { insertData, error });
               
               if (error) {
                 console.error('Error adding item to shopping list:', error);
@@ -615,11 +632,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 });
               }
             } else {
-              console.log("Product already exists in shopping list, not inserting again");
+              console.log(`Product already exists in shopping list, not inserting again`);
               toast({
                 title: "Already in List",
                 description: `${product.name} is already in your shopping list`,
-                variant: "default" // Change from "info" to "default"
+                variant: "default" // Using "default" instead of "info"
               });
             }
           }

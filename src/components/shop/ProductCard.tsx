@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
@@ -48,7 +49,10 @@ const ProductCard = ({ product }: ProductCardProps) => {
         variant: "destructive",
       });
     } finally {
-      setIsAdding(false);
+      // Add a small delay before resetting isAdding to prevent rapid clicking
+      setTimeout(() => {
+        setIsAdding(false);
+      }, 500);
     }
   };
   
@@ -144,8 +148,9 @@ const ProductCard = ({ product }: ProductCardProps) => {
             size="sm" 
             className="btn-hover rounded-full px-4"
             onClick={handleAddToCart}
+            disabled={isAdding}
           >
-            <ShoppingCart size={14} className="mr-2" /> Add
+            <ShoppingCart size={14} className="mr-2" /> {isAdding ? 'Adding...' : 'Add'}
           </Button>
         </div>
       </div>
