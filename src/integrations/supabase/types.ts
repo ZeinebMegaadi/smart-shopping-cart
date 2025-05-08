@@ -62,7 +62,6 @@ export type Database = {
           email: string
           id: string
           rfid_tag: string | null
-          "shopping-list": string | null
           timestamp: string | null
           username: string | null
         }
@@ -70,7 +69,6 @@ export type Database = {
           email: string
           id: string
           rfid_tag?: string | null
-          "shopping-list"?: string | null
           timestamp?: string | null
           username?: string | null
         }
@@ -78,19 +76,10 @@ export type Database = {
           email?: string
           id?: string
           rfid_tag?: string | null
-          "shopping-list"?: string | null
           timestamp?: string | null
           username?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "shoppers_shopping-list_fkey"
-            columns: ["shopping-list"]
-            isOneToOne: false
-            referencedRelation: "shopping_list"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       shopping_list: {
         Row: {

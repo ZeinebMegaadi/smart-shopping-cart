@@ -91,8 +91,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             if (matchingProduct) {
               return {
                 product: {
-                  id: String(matchingProduct.Barcode_ID) || "unknown",
-                  barcodeId: String(matchingProduct.Barcode_ID),
+                  id: String(matchingProduct["Barcode ID"]) || "unknown",
+                  barcodeId: String(matchingProduct["Barcode ID"]),
                   name: matchingProduct.Product,
                   price: matchingProduct.Price,
                   description: `${matchingProduct.Category} - ${matchingProduct.Subcategory}`,
@@ -100,7 +100,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   subcategory: matchingProduct.Subcategory,
                   quantityInStock: matchingProduct.Stock,
                   aisle: matchingProduct.Aisle,
-                  "image-url": matchingProduct["image-url"]
+                  "image-url": matchingProduct["image-url"],
+                  image: '/placeholder.svg' // Adding the required image property with a default value
                 },
                 quantity: 1 // Default quantity, can be adjusted later
               };
@@ -141,8 +142,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         {
           event: '*', 
           schema: 'public',
-          table: 'shopping_list',
-          filter: `shopper_id=eq.${supabase.auth.getSession().then(res => res.data.session?.user?.id)}`
+          table: 'shopping_list'
         }, 
         async (payload) => {
           console.log('Real-time update received:', payload);
@@ -157,7 +157,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               const { data: productData, error: productError } = await supabase
                 .from('products')
                 .select('*')
-                .eq('Barcode_ID', productId)
+                .eq('Barcode ID', productId)
                 .single();
               
               if (productError || !productData) {
@@ -167,7 +167,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               
               // Check if this product is already in the cart
               const existingItemIndex = items.findIndex(item => 
-                item.product.id === String(productData.Barcode_ID)
+                item.product.id === String(productData["Barcode ID"])
               );
               
               if (existingItemIndex >= 0) {
@@ -180,8 +180,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               } else {
                 // Add new product to cart
                 const newProduct: Product = {
-                  id: String(productData.Barcode_ID),
-                  barcodeId: String(productData.Barcode_ID),
+                  id: String(productData["Barcode ID"]),
+                  barcodeId: String(productData["Barcode ID"]),
                   name: productData.Product,
                   price: productData.Price,
                   description: `${productData.Category} - ${productData.Subcategory}`,
@@ -189,7 +189,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   subcategory: productData.Subcategory,
                   quantityInStock: productData.Stock,
                   aisle: productData.Aisle,
-                  "image-url": productData["image-url"]
+                  "image-url": productData["image-url"],
+                  image: '/placeholder.svg' // Adding the required image property with a default value
                 };
                 
                 setItems(prevItems => [...prevItems, { product: newProduct, quantity: 1 }]);
@@ -205,19 +206,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       )
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Subscribed to shopping list changes!');
-        } else {
-          console.log('Subscription status:', status);
-        }
-      });
+      .subscribe();
 
     return () => {
       // Clean up subscription when component unmounts or auth status changes
       supabase.removeChannel(channel);
     };
-  }, [isAuthenticated, toast]);
+  }, [isAuthenticated, toast, items]);
 
   const addToCart = async (product: Product, quantity = 1) => {
     setItems((prevItems) => {
