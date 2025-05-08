@@ -38,6 +38,14 @@ const ProductCard = ({ product }: ProductCardProps) => {
     setIsAdding(true);
     
     try {
+      // Log product details before adding to cart to help debug
+      console.log("Adding product to cart:", {
+        id: product.id,
+        name: product.name,
+        barcodeId: product.barcodeId,
+        numericId: typeof product.id === 'string' ? parseInt(product.id, 10) : product.id
+      });
+      
       // Pass the full product to addToCart
       await addToCart(product, quantity);
       setQuantity(1); // Reset quantity after adding

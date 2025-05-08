@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
@@ -499,7 +498,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(allItems));
   }, [items, scannedItems]);
 
-  // Fixed addToCart function to correctly check for existing products
+  // Fixed addToCart function to correctly check for existing products and handle product IDs properly
   const addToCart = async (product: Product, quantity = 1) => {
     console.log("Adding to cart:", product, "quantity:", quantity);
     
@@ -548,79 +547,90 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           if (userId) {
             console.log(`User ${userId} is authenticated, checking if product ${product.id} exists in DB`);
             
-            // First, ensure the product ID is a number for Supabase queries
-            let productIdNumber: number;
+            // First ensure we're working with a proper product ID for database queries
+            let productIdForDb: number;
+            
             try {
-              productIdNumber = parseInt(product.id, 10);
-              if (isNaN(productIdNumber)) {
-                throw new Error("Product ID is not a valid number");
+              // Try to directly use the product.id if it's a number already
+              if (typeof product.id === 'number') {
+                productIdForDb = product.id;
+                console.log(`Product ID is already a number: ${productIdForDb}`);
+              } else {
+                // Convert string ID to number if possible
+                productIdForDb = parseInt(product.id, 10);
+                if (isNaN(productIdForDb)) {
+                  throw new Error("Product ID is not a valid number");
+                }
+                console.log(`Converted product ID string to number: ${productIdForDb}`);
               }
-              console.log(`Converted product ID to number: ${productIdNumber}`);
             } catch (parseError) {
-              console.error("Error converting product ID to number:", parseError);
-              // Try using the product ID as is
-              productIdNumber = Number(product.id);
-              console.log(`Using product ID as is: ${productIdNumber}`);
-            }
-            
-            console.log(`Looking for product with ID (number): ${productIdNumber}`);
-            
-            // First check if the product exists in products table
-            const { data: productExists, error: productError } = await supabase
-              .from('products')
-              .select('id, Product')
-              .eq('id', productIdNumber)
-              .maybeSingle();
-            
-            // Log the full response for debugging
-            console.log('Product exists check response:', { productExists, productError });
-            
-            if (productError) {
-              console.error('Error checking product existence:', productError);
-              toast({
-                title: "Database Error",
-                description: `Error checking product: ${productError.message}`,
-                variant: "destructive"
-              });
-              return;
-            }
-
-            // If product not found by ID, try searching by name as fallback
-            if (!productExists) {
-              console.log(`Product ID ${productIdNumber} not found, trying to search by name: "${product.name}"`);
+              console.error("Error parsing product ID:", parseError);
               
-              const { data: productByName, error: nameSearchError } = await supabase
+              // If we can't use the ID, look up the product by name as fallback
+              console.log(`Will look up product "${product.name}" by name instead of ID`);
+              productIdForDb = 0; // Initialize with invalid ID
+            }
+            
+            // First try to find the product by ID in products table
+            console.log(`Looking for product in database with ID: ${productIdForDb}`);
+            let foundProduct = null;
+            
+            // Only attempt ID-based lookup if we have a valid ID
+            if (productIdForDb && !isNaN(productIdForDb)) {
+              const { data: productById, error: productIdError } = await supabase
                 .from('products')
                 .select('id, Product')
-                .ilike('Product', product.name)
+                .eq('id', productIdForDb)
                 .maybeSingle();
               
-              console.log('Product search by name response:', { productByName, nameSearchError });
+              console.log('Product lookup by ID response:', { productById, productIdError });
               
-              if (nameSearchError) {
-                console.error('Error searching product by name:', nameSearchError);
-              } else if (productByName) {
-                console.log(`Found product by name match! ID: ${productByName.id}, Name: ${productByName.Product}`);
-                productIdNumber = productByName.id;
-                console.log(`Using matched product ID: ${productIdNumber}`);
+              if (!productIdError && productById) {
+                foundProduct = productById;
+                console.log(`Found product by ID: ${foundProduct.id} - ${foundProduct.Product}`);
               }
             }
             
-            // Final check if we have a valid product (either by ID or by name)
-            if (productExists || productIdNumber) {
-              const finalProductId = productExists ? productExists.id : productIdNumber;
-              console.log(`Using final product ID for shopping list: ${finalProductId}`);
+            // If no product found by ID, try by name with case-insensitive search
+            if (!foundProduct) {
+              console.log(`Product not found by ID, searching by name: "${product.name}"`);
               
-              // Then check if the item is already in user's shopping list
-              console.log(`Checking if product ${finalProductId} is in user's shopping list`);
+              const { data: productsByName, error: nameSearchError } = await supabase
+                .from('products')
+                .select('id, Product')
+                .ilike('Product', `%${product.name}%`);
               
+              console.log('Product search by name results:', { productsByName, nameSearchError });
+              
+              if (!nameSearchError && productsByName && productsByName.length > 0) {
+                // Try to find exact match first (ignoring case)
+                const exactMatch = productsByName.find(p => 
+                  p.Product.toLowerCase() === product.name.toLowerCase()
+                );
+                
+                if (exactMatch) {
+                  foundProduct = exactMatch;
+                  console.log(`Found exact name match: ${foundProduct.id} - ${foundProduct.Product}`);
+                } else {
+                  // Otherwise use the first partial match
+                  foundProduct = productsByName[0];
+                  console.log(`Using first partial match: ${foundProduct.id} - ${foundProduct.Product}`);
+                }
+              }
+            }
+            
+            // Final check if we have found a valid product
+            if (foundProduct) {
+              const finalProductId = foundProduct.id;
+              console.log(`Using final product ID for shopping list insert: ${finalProductId}`);
+              
+              // Check if the item is already in shopping list to avoid duplicates
               const { data: existingItems, error: listError } = await supabase
                 .from('shopping_list')
                 .select('*')
                 .eq('shopper_id', userId)
                 .eq('product_id', finalProductId);
-                
-              // Log the full shopping list response
+              
               console.log('Shopping list check response:', { existingItems, listError });
               
               if (listError) {
@@ -634,9 +644,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               }
               
               if (!existingItems || existingItems.length === 0) {
-                console.log(`Product (ID: ${finalProductId}) not in shopping list, adding to DB`);
-                // Product exists but not in shopping list, add it
-                const { data: insertData, error } = await supabase
+                console.log(`Inserting product (ID: ${finalProductId}) into shopping_list`);
+                // Insert the item into shopping_list
+                const { data: insertData, error: insertError } = await supabase
                   .from('shopping_list')
                   .insert({
                     shopper_id: userId,
@@ -645,14 +655,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   })
                   .select();
                 
-                // Log the insert operation result
-                console.log('Insert operation result:', { insertData, error });
+                console.log('Insert operation result:', { insertData, insertError });
                 
-                if (error) {
-                  console.error('Error adding item to shopping list:', error);
+                if (insertError) {
+                  console.error('Error adding item to shopping list:', insertError);
                   toast({
                     title: "Sync Error",
-                    description: `Could not sync ${product.name} with server: ${error.message}`,
+                    description: `Could not sync ${product.name} with server: ${insertError.message}`,
                     variant: "destructive"
                   });
                 } else {
@@ -666,11 +675,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 toast({
                   title: "Already in List",
                   description: `${product.name} is already in your shopping list`,
-                  variant: "default" // Using "default" instead of "info"
+                  variant: "default"
                 });
               }
             } else {
-              console.log(`Product "${product.name}" (ID: ${product.id}) not found in products table`);
+              console.log(`Product "${product.name}" not found in products table`);
               toast({
                 title: "Local Only",
                 description: `${product.name} added locally only (not found in database)`,
