@@ -18,13 +18,14 @@ const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, 
   },
   global: {
     fetch: (...args) => {
-      const [url, options] = args;
+      // Fix: Properly type the arguments to resolve the spread operator issue
+      const [url, options] = args as [RequestInfo, RequestInit?];
       console.log(`Supabase Fetch: ${options?.method || 'GET'} ${typeof url === 'string' ? url : url.toString()}`);
       
       // Track start time to measure response time
       const startTime = new Date().getTime();
       
-      return fetch(...args).then(response => {
+      return fetch(url, options).then(response => {
         // Calculate response time
         const endTime = new Date().getTime();
         const responseTime = endTime - startTime;
