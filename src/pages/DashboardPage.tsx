@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardStats from "@/components/dashboard/DashboardStats";
-import InventoryTable from "@/components/dashboard/InventoryTable";
+import { InventoryTable } from "@/components/dashboard/InventoryTable"; // Changed to named import
 import UserManagement from "@/components/dashboard/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Package2, Activity, Grid2X2, Users } from "lucide-react";

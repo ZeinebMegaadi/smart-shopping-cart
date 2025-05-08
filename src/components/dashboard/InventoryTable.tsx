@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ interface InventoryTableProps {
   onUpdateProduct?: (product: Product) => void;
 }
 
+// Export as a named export to match the import in DashboardPage
 export const InventoryTable = ({ initialProducts, onUpdateProduct }: InventoryTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -179,3 +179,6 @@ export const InventoryTable = ({ initialProducts, onUpdateProduct }: InventoryTa
     </Card>
   );
 };
+
+// You can also add a default export if needed elsewhere, but keep the named export
+export default InventoryTable;
