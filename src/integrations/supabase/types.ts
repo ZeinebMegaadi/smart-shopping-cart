@@ -27,8 +27,8 @@ export type Database = {
       products: {
         Row: {
           Aisle: string
-          "Barcode ID": number
           Category: string
+          id: number
           "image-url": string | null
           Price: number
           Product: string
@@ -37,8 +37,8 @@ export type Database = {
         }
         Insert: {
           Aisle: string
-          "Barcode ID"?: number
           Category: string
+          id?: number
           "image-url"?: string | null
           Price: number
           Product?: string
@@ -47,8 +47,8 @@ export type Database = {
         }
         Update: {
           Aisle?: string
-          "Barcode ID"?: number
           Category?: string
+          id?: number
           "image-url"?: string | null
           Price?: number
           Product?: string
@@ -106,7 +106,7 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["Barcode ID"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "shopping_list_shopper_id_fkey"

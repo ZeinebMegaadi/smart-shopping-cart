@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
@@ -101,7 +102,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   quantityInStock: matchingProduct.Stock,
                   aisle: matchingProduct.Aisle,
                   "image-url": matchingProduct["image-url"],
-                  image: '/placeholder.svg' // Adding the required image property with a default value
+                  image: '/placeholder.svg' // Adding the required image property
                 },
                 quantity: 1 // Default quantity, can be adjusted later
               };
@@ -157,7 +158,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               const { data: productData, error: productError } = await supabase
                 .from('products')
                 .select('*')
-                .eq('Barcode ID', productId)
+                .eq('id', productId)
                 .single();
               
               if (productError || !productData) {
@@ -190,7 +191,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   quantityInStock: productData.Stock,
                   aisle: productData.Aisle,
                   "image-url": productData["image-url"],
-                  image: '/placeholder.svg' // Adding the required image property with a default value
+                  image: '/placeholder.svg' // Adding the required image property
                 };
                 
                 setItems(prevItems => [...prevItems, { product: newProduct, quantity: 1 }]);
