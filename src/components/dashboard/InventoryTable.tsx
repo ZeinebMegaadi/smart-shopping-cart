@@ -28,14 +28,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Create a simple filtering function with explicit typing to avoid type inference issues
-  function getFilteredProducts() {
+  // Fixed version with manual type annotation to avoid deep type instantiation
+  const getFilteredProducts = (): Product[] => {
     if (!searchTerm) return products;
     
-    return products.filter(product => {
+    const searchLower = searchTerm.toLowerCase();
+    return products.filter((product: Product) => {
       if (!product) return false;
-      
-      const searchLower = searchTerm.toLowerCase();
       
       return (
         (product.name && product.name.toLowerCase().includes(searchLower)) ||
@@ -44,9 +43,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
         (product.subcategory && product.subcategory.toLowerCase().includes(searchLower))
       );
     });
-  }
+  };
   
-  // Use the function directly
   const filteredProducts = getFilteredProducts();
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
