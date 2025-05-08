@@ -146,11 +146,12 @@ const ProductCard = ({ product }: ProductCardProps) => {
           
           <Button 
             size="sm" 
-            className="btn-hover rounded-full px-4"
+            className={`btn-hover rounded-full px-4 ${isAdding ? 'opacity-75' : ''}`}
             onClick={handleAddToCart}
             disabled={isAdding}
           >
-            <ShoppingCart size={14} className="mr-2" /> {isAdding ? 'Adding...' : 'Add'}
+            <ShoppingCart size={14} className={`mr-2 ${isAdding ? 'animate-pulse' : ''}`} /> 
+            {isAdding ? 'Adding...' : 'Add'}
           </Button>
         </div>
       </div>
