@@ -29,22 +29,30 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Fixed version with explicit types to avoid deep type instantiation
+  // Completely redesigned filtering function to avoid deep type instantiation
   const getFilteredProducts = (): Product[] => {
-    if (!searchTerm) return products;
+    if (!searchTerm) {
+      return products;
+    }
     
     const searchLower = searchTerm.toLowerCase();
-    // Using a standard function instead of arrow function with explicit return type
-    return products.filter(function(product: Product): boolean {
-      if (!product) return false;
+    const result: Product[] = [];
+    
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      if (!product) continue;
       
-      return (
-        (product.name && product.name.toLowerCase().includes(searchLower)) ||
-        (product.barcodeId && product.barcodeId.toLowerCase().includes(searchLower)) ||
-        (product.category && product.category.toLowerCase().includes(searchLower)) ||
-        (product.subcategory && product.subcategory.toLowerCase().includes(searchLower))
-      );
-    });
+      const nameMatch = product.name && product.name.toLowerCase().includes(searchLower);
+      const barcodeMatch = product.barcodeId && product.barcodeId.toLowerCase().includes(searchLower);
+      const categoryMatch = product.category && product.category.toLowerCase().includes(searchLower);
+      const subcategoryMatch = product.subcategory && product.subcategory.toLowerCase().includes(searchLower);
+      
+      if (nameMatch || barcodeMatch || categoryMatch || subcategoryMatch) {
+        result.push(product);
+      }
+    }
+    
+    return result;
   };
   
   const filteredProducts = getFilteredProducts();
