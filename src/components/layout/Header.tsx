@@ -27,7 +27,7 @@ import { useCart } from "@/contexts/CartContext";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ const Header = () => {
   const { isAuthenticated, isLoading, userRole } = useAuthStatus();
   const { totalItems } = useCart();
   const [isScrolled, setIsScrolled] = useState(false);
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
 
   // Close mobile menu when route changes
@@ -99,35 +99,27 @@ const Header = () => {
             <NavigationMenu className="hidden md:flex mx-auto">
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <Link to="/" legacyBehavior passHref>
-                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                      <Home className="mr-2 h-4 w-4" />
-                      Home
-                    </NavigationMenuLink>
+                  <Link to="/" className={navigationMenuTriggerStyle()}>
+                    <Home className="mr-2 h-4 w-4" />
+                    Home
                   </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <Link to="/shop" legacyBehavior passHref>
-                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                      <ShoppingBag className="mr-2 h-4 w-4" />
-                      Shop
-                    </NavigationMenuLink>
+                  <Link to="/shop" className={navigationMenuTriggerStyle()}>
+                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    Shop
                   </Link>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <Link to="/recipes" legacyBehavior passHref>
-                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                      <ChefHat className="mr-2 h-4 w-4" />
-                      Recipes
-                    </NavigationMenuLink>
+                  <Link to="/recipes" className={navigationMenuTriggerStyle()}>
+                    <ChefHat className="mr-2 h-4 w-4" />
+                    Recipes
                   </Link>
                 </NavigationMenuItem>
                 {userRole === "owner" && (
                   <NavigationMenuItem>
-                    <Link to="/dashboard" legacyBehavior passHref>
-                      <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                        Dashboard
-                      </NavigationMenuLink>
+                    <Link to="/dashboard" className={navigationMenuTriggerStyle()}>
+                      Dashboard
                     </Link>
                   </NavigationMenuItem>
                 )}
