@@ -1,291 +1,275 @@
 
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { useCart } from "@/contexts/CartContext";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
+import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, ShoppingCart, Menu, X, User, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Home, ShoppingBag, Search, Menu, Settings, LogOut, ChefHat } from "lucide-react";
+import { useAuthStatus } from "@/hooks/useAuthStatus";
+import { useCart } from "@/contexts/CartContext";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { useMobile } from "@/hooks/use-mobile";
 
 const Header = () => {
-  const { currentUser, logout, userRole } = useAuth();
-  const { totalItems } = useCart();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  
-  const isOwner = userRole === "owner";
-  
+  const { isAuthenticated, isLoading, userRole } = useAuthStatus();
+  const { totalItems } = useCart();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const isMobile = useMobile();
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  // Handle scroll event to change header style
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      setIsScrolled(window.scrollY > 10);
     };
-    
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-  
+
   const handleLogout = async () => {
-    // Close mobile menu if open
-    if (mobileMenuOpen) {
-      setMobileMenuOpen(false);
-    }
-    
-    await logout();
-    
-    // Let auth context handle redirect instead of doing it here
-  };
-  
-  const getUserInitials = () => {
-    if (!currentUser?.email) return "U";
-    return currentUser.email
-      .slice(0, 2)
-      .toUpperCase();
-  };
-  
-  const isActive = (path: string) => {
-    if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
-    return false;
+    await supabase.auth.signOut();
+    navigate("/");
   };
 
-  // Don't use useEffect for navigation - this was causing infinite redirect loops
-  // We will rely on the Routes component to handle redirects based on user roles
+  // Get initials from email or use fallback
+  const getInitials = async () => {
+    const { data } = await supabase.auth.getSession();
+    const email = data.session?.user?.email || "";
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  const [initials, setInitials] = useState("U");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      getInitials().then(setInitials);
+    }
+  }, [isAuthenticated]);
 
   return (
-    <header 
-      className={`sticky top-0 z-50 w-full ${
-        scrolled ? "bg-white/95 shadow-md backdrop-blur-sm" : "bg-white"
-      } transition-all duration-300`}
+    <header
+      className={cn(
+        "sticky top-0 z-40 w-full transition-all duration-200",
+        isScrolled
+          ? "bg-background/80 backdrop-blur-sm shadow-sm"
+          : "bg-transparent"
+      )}
     >
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="bg-gradient-to-r from-primary to-secondary rounded-full w-10 h-10 flex items-center justify-center text-white font-bold text-lg">
-            SC
-          </div>
-          <span className="text-xl font-bold hidden sm:inline-block">SmartCart</span>
-        </Link>
-        
-        <nav className="hidden md:flex items-center space-x-6">
-          {!isOwner && (
-            <>
-              <Link 
-                to="/" 
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive("/") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Home
-              </Link>
-              <Link 
-                to="/shop" 
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive("/shop") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Shop
-              </Link>
-              <Link 
-                to="/recipes" 
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  isActive("/recipes") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Recipes
-              </Link>
-            </>
-          )}
-          
-          {isOwner && (
-            <Link 
-              to="/dashboard" 
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive("/dashboard") ? "text-primary" : "text-muted-foreground"
-              }`}
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link
+              to="/"
+              className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70"
             >
-              Dashboard
+              Smart Cart
             </Link>
-          )}
-        </nav>
-        
-        <div className="flex items-center space-x-4">
-          {!isOwner && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="hidden sm:flex"
-                onClick={() => navigate("/search")}
-              >
-                <Search size={20} />
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="relative" 
-                onClick={() => navigate("/cart")}
-              >
-                <ShoppingCart size={20} />
-                {totalItems > 0 && (
-                  <Badge 
-                    className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-secondary text-white"
-                  >
-                    {totalItems}
-                  </Badge>
+          </div>
+
+          {/* Desktop Navigation */}
+          {!isMobile && (
+            <NavigationMenu className="hidden md:flex mx-auto">
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <Link to="/" legacyBehavior passHref>
+                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                      <Home className="mr-2 h-4 w-4" />
+                      Home
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <Link to="/shop" legacyBehavior passHref>
+                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      Shop
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
+                <NavigationMenuItem>
+                  <Link to="/recipes" legacyBehavior passHref>
+                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                      <ChefHat className="mr-2 h-4 w-4" />
+                      Recipes
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
+                {userRole === "owner" && (
+                  <NavigationMenuItem>
+                    <Link to="/dashboard" legacyBehavior passHref>
+                      <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                        Dashboard
+                      </NavigationMenuLink>
+                    </Link>
+                  </NavigationMenuItem>
                 )}
-              </Button>
-            </>
+              </NavigationMenuList>
+            </NavigationMenu>
           )}
-          
-          {currentUser ? (
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="hidden md:flex items-center gap-2"
-                onClick={handleLogout}
-              >
-                <LogOut size={16} />
-                Logout
-              </Button>
-            
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-2">
+            {/* Search Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground"
+              onClick={() => navigate("/search")}
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+
+            {/* Cart Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground relative"
+              onClick={() => navigate("/cart")}
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {totalItems > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] flex items-center justify-center">
+                  {totalItems}
+                </Badge>
+              )}
+            </Button>
+
+            {/* User Menu */}
+            {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8 bg-primary text-white">
-                      <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {initials}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </DropdownMenuItem>
-                    {isOwner && (
-                      <DropdownMenuItem onClick={() => navigate("/dashboard")}>
-                        <span>Dashboard</span>
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
-          ) : (
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="hidden md:inline-flex"
-              onClick={() => navigate("/auth")}
-            >
-              Sign In
-            </Button>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="md:hidden" 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </Button>
-        </div>
-      </div>
-      
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 animate-fade-in">
-          <div className="container px-4 py-3 space-y-3">
-            {!isOwner && (
-              <>
-                <Link 
-                  to="/"
-                  className="block py-2 text-base font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Home
-                </Link>
-                <Link 
-                  to="/shop"
-                  className="block py-2 text-base font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Shop
-                </Link>
-                <Link 
-                  to="/search"
-                  className="block py-2 text-base font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Search
-                </Link>
-                <Link 
-                  to="/recipes"
-                  className="block py-2 text-base font-medium"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Recipes
-                </Link>
-              </>
-            )}
-            
-            {isOwner && (
-              <Link 
-                to="/dashboard"
-                className="block py-2 text-base font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-            )}
-            
-            {currentUser ? (
-              <Button 
-                variant="outline"
-                className="w-full flex items-center justify-center gap-2"
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                <LogOut size={16} />
-                Logout
-              </Button>
             ) : (
-              <Button 
-                variant="default" 
-                className="w-full"
-                onClick={() => {
-                  navigate("/auth");
-                  setMobileMenuOpen(false);
-                }}
-              >
+              <Button onClick={() => navigate("/auth")} size="sm">
                 Sign In
               </Button>
             )}
+
+            {/* Mobile Menu Button */}
+            {isMobile && (
+              <Sheet open={isOpen} onOpenChange={setIsOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                  <div className="grid gap-4 py-4">
+                    <Link
+                      to="/"
+                      className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                    >
+                      <Home className="h-5 w-5" />
+                      Home
+                    </Link>
+                    <Link
+                      to="/shop"
+                      className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                    >
+                      <ShoppingBag className="h-5 w-5" />
+                      Shop
+                    </Link>
+                    <Link
+                      to="/recipes"
+                      className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                    >
+                      <ChefHat className="h-5 w-5" />
+                      Recipes
+                    </Link>
+                    <Link
+                      to="/cart"
+                      className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                    >
+                      <ShoppingBag className="h-5 w-5" />
+                      Cart {totalItems > 0 && `(${totalItems})`}
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                    >
+                      <Settings className="h-5 w-5" />
+                      Settings
+                    </Link>
+                    {userRole === "owner" && (
+                      <Link
+                        to="/dashboard"
+                        className="flex items-center gap-2 px-3 py-2 text-lg font-medium rounded-md hover:bg-accent"
+                      >
+                        Dashboard
+                      </Link>
+                    )}
+                    {isAuthenticated ? (
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Logout
+                      </Button>
+                    ) : (
+                      <Button
+                        className="mt-4"
+                        onClick={() => navigate("/auth")}
+                      >
+                        Sign In
+                      </Button>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 };

@@ -59,6 +59,7 @@ export type Database = {
       }
       shoppers: {
         Row: {
+          dietary_preferences: string[] | null
           email: string
           id: string
           rfid_tag: string | null
@@ -66,6 +67,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          dietary_preferences?: string[] | null
           email: string
           id: string
           rfid_tag?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          dietary_preferences?: string[] | null
           email?: string
           id?: string
           rfid_tag?: string | null
