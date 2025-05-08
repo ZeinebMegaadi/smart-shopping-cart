@@ -55,7 +55,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     return result;
   };
   
-  const filteredProducts = getFilteredProducts();
+  // Use the function but ensure a simple variable assignment instead of a complex expression
+  // that might lead to deep type instantiation
+  const filteredProducts: Product[] = getFilteredProducts();
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
@@ -382,3 +384,4 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
 };
 
 export default InventoryTable;
+
