@@ -1,4 +1,3 @@
-
 import { useCart } from "@/contexts/CartContext";
 import { useEffect, useState } from "react";
 import CartItemCard from "@/components/shop/CartItemCard";
@@ -53,7 +52,7 @@ const CartPage = () => {
         <h1 className="text-3xl font-bold mb-4 gradient-text">Your Smart Shopping Experience</h1>
         
         {!isAuthenticated && (
-          <Alert variant="warning" className="mb-6">
+          <Alert className="mb-6">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               You're not signed in. Cart items are saved locally but won't sync with smart cart scanning.

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
@@ -499,99 +498,98 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem("cart", JSON.stringify(allItems));
   }, [items, scannedItems]);
 
+  // FIX: Fixed addToCart function to handle duplicate items properly
   const addToCart = async (product: Product, quantity = 1) => {
-    // Check if the item is already in the cart
-    const existingItemIndex = items.findIndex(
-      (item) => item.product.id === product.id
-    );
-
-    let updatedItems = [...items];
-
-    // Update local state first for immediate UI feedback
-    if (existingItemIndex >= 0) {
-      // Item exists, update quantity
-      updatedItems[existingItemIndex].quantity += quantity;
+    // Check if the item is already in the cart by both ID and barcodeId
+    const existingItemById = items.find(item => item.product.id === product.id);
+    const existingItemByBarcode = items.find(item => item.product.barcodeId === product.barcodeId && item.product.id !== product.id);
+    
+    // If we found a duplicate by either ID or barcode, update that item
+    if (existingItemById) {
+      // Update quantity for existing item
+      const updatedItems = items.map(item => {
+        if (item.product.id === product.id) {
+          return { ...item, quantity: item.quantity + quantity };
+        }
+        return item;
+      });
+      
       setItems(updatedItems);
       
       toast({
         title: "Cart updated",
         description: `${product.name} quantity updated in cart`,
       });
-    } else {
+      
+      // Sync with Supabase if authenticated (no need to insert, just update)
+      // We don't currently have a quantity field in shopping_list, so we skip that part
+    } 
+    else if (existingItemByBarcode) {
+      // Found a duplicate by barcode but different ID, update that item
+      const updatedItems = items.map(item => {
+        if (item.product.barcodeId === product.barcodeId) {
+          return { ...item, quantity: item.quantity + quantity };
+        }
+        return item;
+      });
+      
+      setItems(updatedItems);
+      
+      toast({
+        title: "Cart updated",
+        description: `${product.name} quantity updated in cart`,
+      });
+    }
+    else {
       // Item doesn't exist, add it
-      updatedItems = [...items, { 
+      const newItem = { 
         product, 
         quantity,
         scanned: false // Explicitly set to false for new items
-      }];
-      setItems(updatedItems);
+      };
+      
+      setItems(prev => [...prev, newItem]);
       
       toast({
         title: "Added to cart",
         description: `${product.name} added to your cart`,
       });
-    }
-    
-    // Sync with Supabase if the user is authenticated
-    if (isAuthenticated) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const userId = session?.user?.id;
-        
-        if (userId) {
-          // Check if the product is already in the shopping list
-          const { data: existingItems } = await supabase
-            .from('shopping_list')
-            .select('*')
-            .eq('shopper_id', userId)
-            .eq('product_id', Number(product.id)); // Use product.id directly instead of barcodeId
+      
+      // Sync with Supabase if authenticated
+      if (isAuthenticated) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const userId = session?.user?.id;
           
-          if (!existingItems || existingItems.length === 0) {
-            // Important fix: First check if product exists using its ID directly
-            const { data: productExists } = await supabase
-              .from('products')
-              .select('id')
-              .eq('id', Number(product.id)) // Use ID directly for consistency
-              .single();
+          if (userId) {
+            // Check if the product is already in the shopping list
+            const { data: existingItems } = await supabase
+              .from('shopping_list')
+              .select('*')
+              .eq('shopper_id', userId)
+              .eq('product_id', Number(product.id));
             
-            if (productExists) {
-              // Add to shopping list if not already there and product exists
-              const { error } = await supabase
-                .from('shopping_list')
-                .insert({
-                  shopper_id: userId,
-                  product_id: Number(product.id), // Use product.id consistently 
-                  scanned: false
-                });
-              
-              if (error) {
-                console.error('Error adding item to shopping list:', error);
-                toast({
-                  title: "Sync Error",
-                  description: `Could not sync ${product.name} with server: ${error.message}`,
-                  variant: "destructive"
-                });
-              }
-            } else {
-              // If the product doesn't exist in the database with the ID,
-              // try with barcodeId as a fallback (for legacy reasons)
-              const { data: productByBarcode } = await supabase
+            // Only proceed if we don't already have this product in the shopping list
+            if (!existingItems || existingItems.length === 0) {
+              // Important fix: First check if product exists using its ID directly
+              const { data: productExists } = await supabase
                 .from('products')
                 .select('id')
-                .eq('id', Number(product.barcodeId));
-                
-              if (productByBarcode && productByBarcode.length > 0) {
-                // Product exists with barcodeId
+                .eq('id', Number(product.id))
+                .single();
+              
+              if (productExists) {
+                // Add to shopping list if not already there and product exists
                 const { error } = await supabase
                   .from('shopping_list')
                   .insert({
                     shopper_id: userId,
-                    product_id: Number(product.barcodeId),
+                    product_id: Number(product.id),
                     scanned: false
                   });
                 
                 if (error) {
-                  console.error('Error adding item to shopping list (barcode fallback):', error);
+                  console.error('Error adding item to shopping list:', error);
                   toast({
                     title: "Sync Error",
                     description: `Could not sync ${product.name} with server: ${error.message}`,
@@ -599,35 +597,60 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   });
                 }
               } else {
-                console.error(`Product ${product.name} (ID: ${product.id}, BarcodeID: ${product.barcodeId}) does not exist in products table`);
-                toast({
-                  title: "Product Error",
-                  description: `This product doesn't exist in our database. It's available locally only.`,
-                  variant: "destructive"
-                });
-                
-                // Log the product details for debugging
-                console.log('Problem product details:', product);
-                
-                // Let's try to get more information about what's in the database
-                const { data: allProducts, error: productsError } = await supabase
+                // If the product doesn't exist in the database with the ID,
+                // try with barcodeId as a fallback (for legacy reasons)
+                const { data: productByBarcode } = await supabase
                   .from('products')
-                  .select('id, Product')
-                  .eq('Product', product.name);
-                
-                if (productsError) {
-                  console.error('Error fetching products by name:', productsError);
-                } else if (allProducts && allProducts.length > 0) {
-                  console.log('Found products with the same name:', allProducts);
+                  .select('id')
+                  .eq('id', Number(product.barcodeId));
+                  
+                if (productByBarcode && productByBarcode.length > 0) {
+                  // Check if we already have this barcode product in the shopping list
+                  const { data: existingBarcodeItems } = await supabase
+                    .from('shopping_list')
+                    .select('*')
+                    .eq('shopper_id', userId)
+                    .eq('product_id', Number(product.barcodeId));
+                  
+                  // Only insert if not already in shopping list
+                  if (!existingBarcodeItems || existingBarcodeItems.length === 0) {
+                    const { error } = await supabase
+                      .from('shopping_list')
+                      .insert({
+                        shopper_id: userId,
+                        product_id: Number(product.barcodeId),
+                        scanned: false
+                      });
+                    
+                    if (error) {
+                      console.error('Error adding item to shopping list (barcode fallback):', error);
+                      toast({
+                        title: "Sync Error",
+                        description: `Could not sync ${product.name} with server: ${error.message}`,
+                        variant: "destructive"
+                      });
+                    }
+                  }
                 } else {
-                  console.log('No products found with name:', product.name);
+                  console.error(`Product ${product.name} (ID: ${product.id}, BarcodeID: ${product.barcodeId}) does not exist in products table`);
+                  toast({
+                    title: "Product Error",
+                    description: `This product doesn't exist in our database. It's available locally only.`,
+                    variant: "destructive"
+                  });
+                  
+                  // Log the product details for debugging
+                  console.log('Problem product details:', product);
                 }
               }
+            } else {
+              // Log that we found existing item
+              console.log(`Product ${product.name} (ID: ${product.id}) already exists in shopping list, not inserting again`);
             }
           }
+        } catch (error) {
+          console.error('Error syncing with shopping list:', error);
         }
-      } catch (error) {
-        console.error('Error syncing with shopping list:', error);
       }
     }
   };
