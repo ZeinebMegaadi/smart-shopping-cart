@@ -23,11 +23,14 @@ const CartItemCard = ({ item }: CartItemCardProps) => {
     }
   };
   
+  // Use image URL from product with fallbacks
+  const productImage = product["image-url"] || product.image || '/placeholder.svg';
+  
   return (
     <div className="flex items-center border-b border-gray-200 py-4">
       <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-md">
         <img
-          src={product["image-url"] || product.image || '/placeholder.svg'}
+          src={productImage}
           alt={product.name}
           className="h-full w-full object-cover object-center"
           onError={(e) => {

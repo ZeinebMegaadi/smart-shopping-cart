@@ -40,45 +40,297 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  // Load cart from Supabase when user is authenticated
+  useEffect(() => {
+    const loadShoppingListFromSupabase = async () => {
+      if (!isAuthenticated) return;
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        if (!userId) return;
+
+        // Load shopping list from Supabase
+        const { data: shoppingListItems, error } = await supabase
+          .from('shopping_list')
+          .select(`
+            id,
+            product_id,
+            scanned,
+            products:product_id (
+              id,
+              "Product", 
+              "Price",
+              "Stock",
+              "Category",
+              "Subcategory",
+              "Aisle",
+              image_url
+            )
+          `)
+          .eq('shopper_id', userId);
+
+        if (error) {
+          console.error('Error loading shopping list:', error);
+          return;
+        }
+
+        if (shoppingListItems && shoppingListItems.length > 0) {
+          // Convert Supabase data to CartItem format
+          const cartItems: CartItem[] = shoppingListItems.map(item => {
+            // Map product from Supabase data format to our Product type
+            const supabaseProduct = item.products;
+            if (!supabaseProduct) return null;
+
+            const product: Product = {
+              id: String(supabaseProduct.id),
+              barcodeId: String(supabaseProduct.id),
+              name: supabaseProduct["Product"],
+              price: supabaseProduct["Price"],
+              quantityInStock: supabaseProduct["Stock"],
+              category: supabaseProduct["Category"],
+              subcategory: supabaseProduct["Subcategory"],
+              description: `Product from ${supabaseProduct["Category"]} category`,
+              image: supabaseProduct.image_url || '/placeholder.svg',
+              "image-url": supabaseProduct.image_url || null,
+              popular: false
+            };
+
+            return {
+              product,
+              quantity: 1 // Default quantity
+            };
+          }).filter(Boolean) as CartItem[];
+
+          // Merge with local cart, prioritizing Supabase items
+          const localItems = [...items];
+          const mergedItems: CartItem[] = [...cartItems];
+
+          // Add local items not in Supabase
+          localItems.forEach(localItem => {
+            const exists = cartItems.some(item => item.product.id === localItem.product.id);
+            if (!exists) {
+              mergedItems.push(localItem);
+            }
+          });
+
+          setItems(mergedItems);
+          localStorage.setItem("cart", JSON.stringify(mergedItems));
+        }
+      } catch (error) {
+        console.error('Error in loadShoppingListFromSupabase:', error);
+      }
+    };
+
+    loadShoppingListFromSupabase();
+  }, [isAuthenticated]);
+
+  // Set up real-time subscription for shopping list changes
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const setupRealtimeSubscription = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        
+        if (!userId) return;
+
+        // Create a channel specifically for this user's shopping list
+        const shoppingListChannel = supabase
+          .channel(`shopping-list-${userId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'shopping_list',
+              filter: `shopper_id=eq.${userId}`
+            },
+            async (payload) => {
+              console.log('Real-time shopping list update:', payload);
+
+              // Refresh the entire shopping list on any change
+              // This ensures we have the most up-to-date data
+              loadShoppingListFromSupabase();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(shoppingListChannel);
+        };
+      } catch (error) {
+        console.error('Error setting up real-time subscription:', error);
+      }
+    };
+
+    // Helper function to load shopping list data
+    const loadShoppingListFromSupabase = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+
+        if (!userId) return;
+
+        const { data: shoppingListItems, error } = await supabase
+          .from('shopping_list')
+          .select(`
+            id,
+            product_id,
+            scanned,
+            products:product_id (
+              id,
+              "Product", 
+              "Price",
+              "Stock",
+              "Category",
+              "Subcategory",
+              "Aisle",
+              image_url
+            )
+          `)
+          .eq('shopper_id', userId);
+
+        if (error) {
+          console.error('Error refreshing shopping list:', error);
+          return;
+        }
+
+        if (shoppingListItems && shoppingListItems.length > 0) {
+          const cartItems: CartItem[] = shoppingListItems
+            .map(item => {
+              const supabaseProduct = item.products;
+              if (!supabaseProduct) return null;
+
+              const product: Product = {
+                id: String(supabaseProduct.id),
+                barcodeId: String(supabaseProduct.id),
+                name: supabaseProduct["Product"],
+                price: supabaseProduct["Price"],
+                quantityInStock: supabaseProduct["Stock"],
+                category: supabaseProduct["Category"],
+                subcategory: supabaseProduct["Subcategory"],
+                description: `Product from ${supabaseProduct["Category"]} category`,
+                image: supabaseProduct.image_url || '/placeholder.svg',
+                "image-url": supabaseProduct.image_url || null,
+                popular: false
+              };
+
+              return {
+                product,
+                quantity: 1
+              };
+            })
+            .filter(Boolean) as CartItem[];
+
+          setItems(cartItems);
+          localStorage.setItem("cart", JSON.stringify(cartItems));
+        } else {
+          // If shopping list is empty, clear local cart
+          setItems([]);
+          localStorage.removeItem("cart");
+        }
+      } catch (error) {
+        console.error('Error in loadShoppingListFromSupabase:', error);
+      }
+    };
+
+    const subscription = setupRealtimeSubscription();
+    
+    return () => {
+      if (subscription) {
+        subscription.then(unsub => {
+          if (unsub) unsub();
+        });
+      }
+    };
+  }, [isAuthenticated]);
+
   // Update localStorage whenever cart changes
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: Product, quantity = 1) => {
-    setItems((prevItems) => {
-      // Check if the item is already in the cart
-      const existingItemIndex = prevItems.findIndex(
-        (item) => item.product.id === product.id
-      );
+  const addToCart = async (product: Product, quantity = 1) => {
+    // Check if the item is already in the cart
+    const existingItemIndex = items.findIndex(
+      (item) => item.product.id === product.id
+    );
 
-      if (existingItemIndex >= 0) {
-        // Item exists, update quantity
-        const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex].quantity += quantity;
+    let updatedItems = [...items];
+
+    // Update local state first for immediate UI feedback
+    if (existingItemIndex >= 0) {
+      // Item exists, update quantity
+      updatedItems[existingItemIndex].quantity += quantity;
+      setItems(updatedItems);
+      
+      toast({
+        title: "Cart updated",
+        description: `${product.name} quantity updated in cart`,
+      });
+    } else {
+      // Item doesn't exist, add it
+      updatedItems = [...items, { product, quantity }];
+      setItems(updatedItems);
+      
+      toast({
+        title: "Added to cart",
+        description: `${product.name} added to your cart`,
+      });
+    }
+    
+    // Sync with Supabase if the user is authenticated
+    if (isAuthenticated) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
         
-        toast({
-          title: "Cart updated",
-          description: `${product.name} quantity updated in cart`,
-        });
-        
-        return updatedItems;
-      } else {
-        // Item doesn't exist, add it
-        toast({
-          title: "Added to cart",
-          description: `${product.name} added to your cart`,
-        });
-        
-        return [...prevItems, { product, quantity }];
+        if (userId) {
+          // Check if the product is already in the shopping list
+          const { data: existingItems } = await supabase
+            .from('shopping_list')
+            .select('*')
+            .eq('shopper_id', userId)
+            .eq('product_id', Number(product.barcodeId));
+          
+          if (!existingItems || existingItems.length === 0) {
+            // Add to shopping list if not already there
+            const { error } = await supabase
+              .from('shopping_list')
+              .insert({
+                shopper_id: userId,
+                product_id: Number(product.barcodeId),
+                scanned: false
+              });
+            
+            if (error) {
+              console.error('Error adding item to shopping list:', error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing with shopping list:', error);
       }
-    });
+    }
   };
 
   const removeFromCart = async (productId: string) => {
     const itemToRemove = items.find((item) => item.product.id === productId);
     
-    // First, remove from Supabase if user is authenticated
+    // Update local state first for immediate UI feedback
+    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
+    
+    if (itemToRemove) {
+      toast({
+        title: "Removed from cart",
+        description: `${itemToRemove.product.name} removed from your cart`,
+      });
+    }
+    
+    // Sync with Supabase if the user is authenticated
     if (isAuthenticated && itemToRemove) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -94,29 +346,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             
           if (error) {
             console.error('Error removing item from shopping list:', error);
-          } else {
-            console.log('Item successfully removed from shopping list in Supabase');
           }
         }
       } catch (error) {
         console.error('Error syncing with shopping list:', error);
       }
     }
-    
-    // Then, remove from local cart
-    setItems((prevItems) => {
-      if (itemToRemove) {
-        toast({
-          title: "Removed from cart",
-          description: `${itemToRemove.product.name} removed from your cart`,
-        });
-      }
-      
-      return prevItems.filter((item) => item.product.id !== productId);
-    });
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = async (productId: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(productId);
       return;
@@ -127,9 +365,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         item.product.id === productId ? { ...item, quantity } : item
       )
     );
+    
+    // Currently there's no quantity field in the shopping_list table,
+    // so we just ensure the item exists in Supabase but don't update its quantity
   };
 
   const clearCart = async () => {
+    // Clear local cart state
+    setItems([]);
+    localStorage.removeItem("cart");
+    
+    toast({
+      title: "Cart cleared",
+      description: "All items have been removed from your cart",
+    });
+    
     // Clear from Supabase if user is authenticated
     if (isAuthenticated) {
       try {
@@ -145,20 +395,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             
           if (error) {
             console.error('Error clearing shopping list:', error);
-          } else {
-            console.log('Shopping list successfully cleared in Supabase');
           }
         }
       } catch (error) {
         console.error('Error syncing with shopping list:', error);
       }
     }
-    
-    setItems([]);
-    toast({
-      title: "Cart cleared",
-      description: "All items have been removed from your cart",
-    });
   };
 
   const totalItems = items.reduce((total, item) => total + item.quantity, 0);
