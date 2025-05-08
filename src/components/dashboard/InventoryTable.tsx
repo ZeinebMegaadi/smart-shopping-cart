@@ -28,20 +28,26 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Explicitly define the filtering function to avoid deep type instantiation
-  const filterProduct = (product: Product): boolean => {
-    if (!product) return false;
+  // Create a simple filtering function with explicit typing to avoid type inference issues
+  function getFilteredProducts() {
+    if (!searchTerm) return products;
     
-    const searchLower = searchTerm.toLowerCase();
-    const nameMatch = product.name ? product.name.toLowerCase().includes(searchLower) : false;
-    const barcodeMatch = product.barcodeId ? product.barcodeId.toLowerCase().includes(searchLower) : false;
-    const categoryMatch = product.category ? product.category.toLowerCase().includes(searchLower) : false;
-    const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
-    
-    return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
-  };
+    return products.filter(product => {
+      if (!product) return false;
+      
+      const searchLower = searchTerm.toLowerCase();
+      
+      return (
+        (product.name && product.name.toLowerCase().includes(searchLower)) ||
+        (product.barcodeId && product.barcodeId.toLowerCase().includes(searchLower)) ||
+        (product.category && product.category.toLowerCase().includes(searchLower)) ||
+        (product.subcategory && product.subcategory.toLowerCase().includes(searchLower))
+      );
+    });
+  }
   
-  const filteredProducts = products.filter(filterProduct);
+  // Use the function directly
+  const filteredProducts = getFilteredProducts();
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
