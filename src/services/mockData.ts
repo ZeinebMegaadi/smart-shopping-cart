@@ -1,4 +1,3 @@
-
 // Mock data for the Smart Shopping Cart application
 
 export interface Product {

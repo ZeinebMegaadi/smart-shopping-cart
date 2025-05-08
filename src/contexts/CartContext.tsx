@@ -296,14 +296,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .from('shopping_list')
             .select('*')
             .eq('shopper_id', userId)
-            .eq('product_id', Number(product.barcodeId));
+            .eq('product_id', Number(product.id)); // Use product.id directly instead of barcodeId
           
           if (!existingItems || existingItems.length === 0) {
-            // Verify that product exists in products table first
+            // Important fix: First check if product exists using its ID directly
             const { data: productExists } = await supabase
               .from('products')
               .select('id')
-              .eq('id', Number(product.barcodeId))
+              .eq('id', Number(product.id)) // Use ID directly for consistency
               .single();
             
             if (productExists) {
@@ -312,7 +312,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 .from('shopping_list')
                 .insert({
                   shopper_id: userId,
-                  product_id: Number(product.barcodeId),
+                  product_id: Number(product.id), // Use product.id consistently 
                   scanned: false
                 });
               
@@ -325,12 +325,56 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 });
               }
             } else {
-              console.error(`Product ${product.name} (ID: ${product.barcodeId}) does not exist in products table`);
-              toast({
-                title: "Product Error",
-                description: `This product doesn't exist in our database. It's available locally only.`,
-                variant: "destructive"
-              });
+              // If the product doesn't exist in the database with the ID,
+              // try with barcodeId as a fallback (for legacy reasons)
+              const { data: productByBarcode } = await supabase
+                .from('products')
+                .select('id')
+                .eq('id', Number(product.barcodeId));
+                
+              if (productByBarcode && productByBarcode.length > 0) {
+                // Product exists with barcodeId
+                const { error } = await supabase
+                  .from('shopping_list')
+                  .insert({
+                    shopper_id: userId,
+                    product_id: Number(product.barcodeId),
+                    scanned: false
+                  });
+                
+                if (error) {
+                  console.error('Error adding item to shopping list (barcode fallback):', error);
+                  toast({
+                    title: "Sync Error",
+                    description: `Could not sync ${product.name} with server: ${error.message}`,
+                    variant: "destructive"
+                  });
+                }
+              } else {
+                console.error(`Product ${product.name} (ID: ${product.id}, BarcodeID: ${product.barcodeId}) does not exist in products table`);
+                toast({
+                  title: "Product Error",
+                  description: `This product doesn't exist in our database. It's available locally only.`,
+                  variant: "destructive"
+                });
+                
+                // Log the product details for debugging
+                console.log('Problem product details:', product);
+                
+                // Let's try to get more information about what's in the database
+                const { data: allProducts, error: productsError } = await supabase
+                  .from('products')
+                  .select('id, Product')
+                  .eq('Product', product.name);
+                
+                if (productsError) {
+                  console.error('Error fetching products by name:', productsError);
+                } else if (allProducts && allProducts.length > 0) {
+                  console.log('Found products with the same name:', allProducts);
+                } else {
+                  console.log('No products found with name:', product.name);
+                }
+              }
             }
           }
         }
