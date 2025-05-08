@@ -8,22 +8,27 @@ import { useAuthStatus } from "@/hooks/useAuthStatus";
 export interface CartItem {
   product: Product;
   quantity: number;
+  scanned: boolean;
+  shoppingListId?: string; // Track the database ID
 }
 
 interface CartContextType {
   items: CartItem[];
+  scannedItems: CartItem[];
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  scannedTotalPrice: number;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [scannedItems, setScannedItems] = useState<CartItem[]>([]);
   const { toast } = useToast();
   const { isAuthenticated } = useAuthStatus();
 
@@ -32,7 +37,16 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {
-        setItems(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart);
+        // Ensure scanned is explicitly a boolean to avoid type issues
+        const processedCart = parsedCart.map((item: CartItem) => ({
+          ...item,
+          scanned: item.scanned === true
+        }));
+        
+        // Split items based on scanned flag
+        setItems(processedCart.filter((item: CartItem) => item.scanned === false));
+        setScannedItems(processedCart.filter((item: CartItem) => item.scanned === true));
       } catch (error) {
         console.error("Failed to parse saved cart:", error);
         localStorage.removeItem("cart");
@@ -50,6 +64,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         const userId = session?.user?.id;
 
         if (!userId) return;
+
+        console.log('Loading shopping list for user:', userId);
 
         // Load shopping list from Supabase
         const { data: shoppingListItems, error } = await supabase
@@ -76,12 +92,20 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
+        console.log('Shopping list items loaded:', shoppingListItems);
+
         if (shoppingListItems && shoppingListItems.length > 0) {
           // Convert Supabase data to CartItem format
-          const cartItems: CartItem[] = shoppingListItems.map(item => {
+          const unscannedItems: CartItem[] = [];
+          const scannedItemsList: CartItem[] = [];
+          
+          shoppingListItems.forEach(item => {
             // Map product from Supabase data format to our Product type
             const supabaseProduct = item.products;
-            if (!supabaseProduct) return null;
+            if (!supabaseProduct) {
+              console.log(`Skipping item with product_id ${item.product_id} - no product data found`);
+              return;
+            }
 
             const product: Product = {
               id: String(supabaseProduct.id),
@@ -91,33 +115,45 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               quantityInStock: supabaseProduct["Stock"],
               category: supabaseProduct["Category"],
               subcategory: supabaseProduct["Subcategory"],
-              aisle: supabaseProduct["Aisle"] || "Unknown", // Add default value for aisle
+              aisle: supabaseProduct["Aisle"] || "Unknown",
               description: `Product from ${supabaseProduct["Category"]} category`,
               image: supabaseProduct.image_url || '/placeholder.svg',
               "image-url": supabaseProduct.image_url || null,
               popular: false
             };
 
-            return {
+            // Explicitly cast scanned to boolean to ensure consistent type
+            const isScanned = item.scanned === true;
+            
+            const cartItem: CartItem = {
               product,
-              quantity: 1 // Default quantity
+              quantity: 1,
+              scanned: isScanned,
+              shoppingListId: item.id
             };
-          }).filter(Boolean) as CartItem[];
 
-          // Merge with local cart, prioritizing Supabase items
-          const localItems = [...items];
-          const mergedItems: CartItem[] = [...cartItems];
-
-          // Add local items not in Supabase
-          localItems.forEach(localItem => {
-            const exists = cartItems.some(item => item.product.id === localItem.product.id);
-            if (!exists) {
-              mergedItems.push(localItem);
+            // Split items based on scanned status
+            if (isScanned) {
+              console.log(`Item ${product.name} (ID: ${item.id}) IS scanned, adding to scanned items list`);
+              scannedItemsList.push(cartItem);
+            } else {
+              console.log(`Item ${product.name} (ID: ${item.id}) is NOT scanned, adding to unscanned items list`);
+              unscannedItems.push(cartItem);
             }
           });
 
-          setItems(mergedItems);
-          localStorage.setItem("cart", JSON.stringify(mergedItems));
+          console.log(`Loaded ${unscannedItems.length} unscanned items and ${scannedItemsList.length} scanned items`);
+
+          // Update state with the new items
+          setItems(unscannedItems);
+          setScannedItems(scannedItemsList);
+
+          // Also update localStorage
+          localStorage.setItem("cart", JSON.stringify([...unscannedItems, ...scannedItemsList]));
+        } else {
+          setItems([]);
+          setScannedItems([]);
+          localStorage.removeItem("cart");
         }
       } catch (error) {
         console.error('Error in loadShoppingListFromSupabase:', error);
@@ -138,6 +174,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (!userId) return;
 
+        console.log('Setting up real-time subscription for shopping list changes...');
+        
         // Create a channel specifically for this user's shopping list
         const shoppingListChannel = supabase
           .channel(`shopping-list-${userId}`)
@@ -150,16 +188,193 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               filter: `shopper_id=eq.${userId}`
             },
             async (payload) => {
-              console.log('Real-time shopping list update:', payload);
+              console.log('Real-time shopping list update received:', payload);
 
-              // Refresh the entire shopping list on any change
-              // This ensures we have the most up-to-date data
-              loadShoppingListFromSupabase();
+              // Handle different types of events
+              if (payload.eventType === 'UPDATE') {
+                const updatedItem = payload.new as any;
+                console.log('Updated item details:', updatedItem);
+                
+                // Check if scanned status changed
+                const wasScanned = payload.old && (payload.old as any).scanned === true;
+                const isNowScanned = updatedItem.scanned === true;
+                
+                console.log(`Item scanned status changed: was ${wasScanned}, is now ${isNowScanned}`);
+                
+                // If an item was newly scanned (changed from false to true)
+                if (!wasScanned && isNowScanned) {
+                  console.log('Item newly scanned, moving from unscanned to scanned list');
+                  
+                  // Find and remove from unscanned items
+                  const matchingItem = items.find(item => 
+                    item.shoppingListId === updatedItem.id || 
+                    item.product.id === String(updatedItem.product_id)
+                  );
+                  
+                  if (matchingItem) {
+                    console.log('Found matching unscanned item to move:', matchingItem);
+                    
+                    // Remove from unscanned items
+                    setItems(prev => prev.filter(item => 
+                      !(item.shoppingListId === updatedItem.id || 
+                        (!item.shoppingListId && item.product.id === String(updatedItem.product_id)))
+                    ));
+                    
+                    // Add to scanned items
+                    const scannedItem = {
+                      ...matchingItem,
+                      scanned: true,
+                      shoppingListId: updatedItem.id
+                    };
+                    
+                    setScannedItems(prev => [...prev, scannedItem]);
+                    
+                    toast({
+                      title: "Item scanned",
+                      description: `${matchingItem.product.name} has been scanned and added to your cart`,
+                    });
+                  } else {
+                    // If we don't find the item in our local state, fetch it from Supabase
+                    console.log('Item not found in unscanned list, fetching from database');
+                    
+                    const { data: productData } = await supabase
+                      .from('products')
+                      .select('*')
+                      .eq('id', updatedItem.product_id)
+                      .single();
+                      
+                    if (productData) {
+                      const product: Product = {
+                        id: String(productData.id),
+                        barcodeId: String(productData.id),
+                        name: productData["Product"],
+                        price: productData["Price"],
+                        quantityInStock: productData["Stock"],
+                        category: productData["Category"],
+                        subcategory: productData["Subcategory"],
+                        aisle: productData["Aisle"] || "Unknown",
+                        description: `Product from ${productData["Category"]} category`,
+                        image: productData.image_url || '/placeholder.svg',
+                        "image-url": productData.image_url || null,
+                        popular: false
+                      };
+                      
+                      const scannedItem: CartItem = {
+                        product,
+                        quantity: 1,
+                        scanned: true,
+                        shoppingListId: updatedItem.id
+                      };
+                      
+                      setScannedItems(prev => [...prev, scannedItem]);
+                      
+                      toast({
+                        title: "New item scanned",
+                        description: `${product.name} has been scanned and added to your cart`,
+                      });
+                    }
+                  }
+                } 
+                // If item was unscanned (changed from true to false)
+                else if (wasScanned && !isNowScanned) {
+                  console.log('Item was unscanned, moving from scanned to unscanned list');
+                  
+                  // Find and remove from scanned items
+                  const matchingItem = scannedItems.find(item => 
+                    item.shoppingListId === updatedItem.id || 
+                    item.product.id === String(updatedItem.product_id)
+                  );
+                  
+                  if (matchingItem) {
+                    // Remove from scanned items
+                    setScannedItems(prev => prev.filter(item => 
+                      !(item.shoppingListId === updatedItem.id || 
+                        (!item.shoppingListId && item.product.id === String(updatedItem.product_id)))
+                    ));
+                    
+                    // Add to unscanned items
+                    const unscannedItem = {
+                      ...matchingItem,
+                      scanned: false,
+                      shoppingListId: updatedItem.id
+                    };
+                    
+                    setItems(prev => [...prev, unscannedItem]);
+                  }
+                }
+                
+                // Full refresh to ensure consistent state
+                refreshShoppingList();
+              } 
+              // Handle DELETE event
+              else if (payload.eventType === 'DELETE') {
+                const deletedItem = payload.old as any;
+                const isScanned = deletedItem.scanned === true;
+                
+                console.log(`Item deleted: ${deletedItem.id}, was scanned: ${isScanned}`);
+                
+                // Remove from appropriate list
+                if (isScanned) {
+                  setScannedItems(prev => prev.filter(item => item.shoppingListId !== deletedItem.id));
+                } else {
+                  setItems(prev => prev.filter(item => item.shoppingListId !== deletedItem.id));
+                }
+              } 
+              // Handle INSERT event
+              else if (payload.eventType === 'INSERT') {
+                const newItem = payload.new as any;
+                const isScanned = newItem.scanned === true;
+                
+                console.log(`New item added: ${newItem.id}, scanned: ${isScanned}`);
+                
+                // Fetch full product details
+                const { data: productData } = await supabase
+                  .from('products')
+                  .select('*')
+                  .eq('id', newItem.product_id)
+                  .single();
+                  
+                if (productData) {
+                  const product: Product = {
+                    id: String(productData.id),
+                    barcodeId: String(productData.id),
+                    name: productData["Product"],
+                    price: productData["Price"],
+                    quantityInStock: productData["Stock"],
+                    category: productData["Category"],
+                    subcategory: productData["Subcategory"],
+                    aisle: productData["Aisle"] || "Unknown",
+                    description: `Product from ${productData["Category"]} category`,
+                    image: productData.image_url || '/placeholder.svg',
+                    "image-url": productData.image_url || null,
+                    popular: false
+                  };
+                  
+                  const cartItem: CartItem = {
+                    product,
+                    quantity: 1,
+                    scanned: isScanned,
+                    shoppingListId: newItem.id
+                  };
+                  
+                  // Add to appropriate list
+                  if (isScanned) {
+                    setScannedItems(prev => [...prev, cartItem]);
+                    console.log(`Added new scanned item: ${product.name}`);
+                  } else {
+                    setItems(prev => [...prev, cartItem]);
+                    console.log(`Added new unscanned item: ${product.name}`);
+                  }
+                }
+              }
             }
           )
           .subscribe();
 
+        console.log('Realtime subscription set up successfully');
+        
         return () => {
+          console.log('Cleaning up realtime subscription');
           supabase.removeChannel(shoppingListChannel);
         };
       } catch (error) {
@@ -167,14 +382,16 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    // Helper function to load shopping list data
-    const loadShoppingListFromSupabase = async () => {
+    // Helper function to refresh shopping list data
+    const refreshShoppingList = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const userId = session?.user?.id;
 
         if (!userId) return;
 
+        console.log('Refreshing shopping list data from Supabase...');
+        
         const { data: shoppingListItems, error } = await supabase
           .from('shopping_list')
           .select(`
@@ -200,46 +417,72 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (shoppingListItems && shoppingListItems.length > 0) {
-          const cartItems: CartItem[] = shoppingListItems
-            .map(item => {
-              const supabaseProduct = item.products;
-              if (!supabaseProduct) return null;
+          console.log('Refreshed shopping list items:', shoppingListItems);
+          
+          // Split items based on scanned status
+          const unscannedItems: CartItem[] = [];
+          const newScannedItems: CartItem[] = [];
+          
+          shoppingListItems.forEach(item => {
+            const supabaseProduct = item.products;
+            if (!supabaseProduct) return;
 
-              const product: Product = {
-                id: String(supabaseProduct.id),
-                barcodeId: String(supabaseProduct.id),
-                name: supabaseProduct["Product"],
-                price: supabaseProduct["Price"],
-                quantityInStock: supabaseProduct["Stock"],
-                category: supabaseProduct["Category"],
-                subcategory: supabaseProduct["Subcategory"],
-                aisle: supabaseProduct["Aisle"] || "Unknown", // Add default value for aisle
-                description: `Product from ${supabaseProduct["Category"]} category`,
-                image: supabaseProduct.image_url || '/placeholder.svg',
-                "image-url": supabaseProduct.image_url || null,
-                popular: false
-              };
+            const product: Product = {
+              id: String(supabaseProduct.id),
+              barcodeId: String(supabaseProduct.id),
+              name: supabaseProduct["Product"],
+              price: supabaseProduct["Price"],
+              quantityInStock: supabaseProduct["Stock"],
+              category: supabaseProduct["Category"],
+              subcategory: supabaseProduct["Subcategory"],
+              aisle: supabaseProduct["Aisle"] || "Unknown",
+              description: `Product from ${supabaseProduct["Category"]} category`,
+              image: supabaseProduct.image_url || '/placeholder.svg',
+              "image-url": supabaseProduct.image_url || null,
+              popular: false
+            };
 
-              return {
-                product,
-                quantity: 1
-              };
-            })
-            .filter(Boolean) as CartItem[];
+            // Explicitly cast to boolean
+            const isScanned = item.scanned === true;
+            
+            const cartItem: CartItem = {
+              product,
+              quantity: 1,
+              scanned: isScanned,
+              shoppingListId: item.id
+            };
 
-          setItems(cartItems);
-          localStorage.setItem("cart", JSON.stringify(cartItems));
+            if (isScanned) {
+              newScannedItems.push(cartItem);
+              console.log(`Item ${product.name} (ID: ${item.id}) IS scanned`);
+            } else {
+              unscannedItems.push(cartItem);
+              console.log(`Item ${product.name} (ID: ${item.id}) is NOT scanned`);
+            }
+          });
+
+          console.log(`Refreshed: ${unscannedItems.length} unscanned, ${newScannedItems.length} scanned items`);
+
+          // Update state with refreshed data
+          setItems(unscannedItems);
+          setScannedItems(newScannedItems);
+          
+          // Update localStorage with all items
+          localStorage.setItem("cart", JSON.stringify([...unscannedItems, ...newScannedItems]));
         } else {
           // If shopping list is empty, clear local cart
           setItems([]);
+          setScannedItems([]);
           localStorage.removeItem("cart");
         }
       } catch (error) {
-        console.error('Error in loadShoppingListFromSupabase:', error);
+        console.error('Error in refreshShoppingList:', error);
       }
     };
 
+    // Set up subscription and do initial refresh
     const subscription = setupRealtimeSubscription();
+    refreshShoppingList();
     
     return () => {
       if (subscription) {
@@ -248,12 +491,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, toast]);
 
   // Update localStorage whenever cart changes
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items));
-  }, [items]);
+    const allItems = [...items, ...scannedItems];
+    localStorage.setItem("cart", JSON.stringify(allItems));
+  }, [items, scannedItems]);
 
   const addToCart = async (product: Product, quantity = 1) => {
     // Check if the item is already in the cart
@@ -275,7 +519,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       });
     } else {
       // Item doesn't exist, add it
-      updatedItems = [...items, { product, quantity }];
+      updatedItems = [...items, { 
+        product, 
+        quantity,
+        scanned: false // Explicitly set to false for new items
+      }];
       setItems(updatedItems);
       
       toast({
@@ -385,10 +633,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const removeFromCart = async (productId: string) => {
-    const itemToRemove = items.find((item) => item.product.id === productId);
+    // Check which list the item is in
+    const unscannedItem = items.find(item => item.product.id === productId);
+    const scannedItem = scannedItems.find(item => item.product.id === productId);
+    const itemToRemove = unscannedItem || scannedItem;
     
-    // Update local state first for immediate UI feedback
-    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
+    // Remove from appropriate list
+    if (unscannedItem) {
+      setItems(prev => prev.filter(item => item.product.id !== productId));
+    }
+    
+    if (scannedItem) {
+      setScannedItems(prev => prev.filter(item => item.product.id !== productId));
+    }
     
     if (itemToRemove) {
       toast({
@@ -409,7 +666,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .from('shopping_list')
             .delete()
             .eq('shopper_id', userId)
-            .eq('product_id', Number(itemToRemove.product.barcodeId));
+            .eq('product_id', Number(itemToRemove.product.id));
             
           if (error) {
             console.error('Error removing item from shopping list:', error);
@@ -427,11 +684,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
 
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      )
-    );
+    // Check if the item is in unscanned or scanned items
+    const unscannedIndex = items.findIndex(item => item.product.id === productId);
+    const scannedIndex = scannedItems.findIndex(item => item.product.id === productId);
+    
+    if (unscannedIndex !== -1) {
+      // Update quantity in unscanned items
+      setItems(prev => prev.map((item, index) => 
+        index === unscannedIndex ? { ...item, quantity } : item
+      ));
+    } else if (scannedIndex !== -1) {
+      // Update quantity in scanned items
+      setScannedItems(prev => prev.map((item, index) => 
+        index === scannedIndex ? { ...item, quantity } : item
+      ));
+    }
     
     // Currently there's no quantity field in the shopping_list table,
     // so we just ensure the item exists in Supabase but don't update its quantity
@@ -440,6 +707,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const clearCart = async () => {
     // Clear local cart state
     setItems([]);
+    setScannedItems([]);
     localStorage.removeItem("cart");
     
     toast({
@@ -470,21 +738,29 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const totalItems = items.reduce((total, item) => total + item.quantity, 0);
+  const totalItems = items.reduce((total, item) => total + item.quantity, 0) + 
+                    scannedItems.reduce((total, item) => total + item.quantity, 0);
   
   const totalPrice = items.reduce(
     (total, item) => total + item.product.price * item.quantity,
     0
   );
 
+  const scannedTotalPrice = scannedItems.reduce(
+    (total, item) => total + item.product.price * item.quantity, 
+    0
+  );
+
   const value = {
     items,
+    scannedItems,
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
     totalItems,
     totalPrice,
+    scannedTotalPrice,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
