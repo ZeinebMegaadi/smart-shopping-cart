@@ -6,7 +6,7 @@ import { Product } from "@/services/mockData";
 import { Plus, Minus, ShoppingCart, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthStatus } from "@/hooks/useAuthStatus";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast";
 
 interface ProductCardProps {
   product: Product;
@@ -15,10 +15,8 @@ interface ProductCardProps {
 const ProductCard = ({ product }: ProductCardProps) => {
   const [quantity, setQuantity] = useState(1);
   const [isHovered, setIsHovered] = useState(false);
-  const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuthStatus();
-  const { toast } = useToast();
   
   const incrementQuantity = () => {
     if (quantity < product.quantityInStock) {
@@ -33,23 +31,52 @@ const ProductCard = ({ product }: ProductCardProps) => {
   };
   
   const handleAddToCart = async () => {
-    setIsAddingToCart(true);
+    addToCart(product, quantity);
+    setQuantity(1);
     
-    try {
-      await addToCart(product, quantity);
-      setQuantity(1);
-      
-      // Real-time database updates are now handled in the CartContext
-      // The data will be synchronized with the shopping_list table there
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast({
-        title: "Error adding to cart",
-        description: "There was a problem adding this item to your cart.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsAddingToCart(false);
+    // Sync with Supabase shopping list for logged-in shoppers
+    if (isAuthenticated) {
+      try {
+        // Get current user
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        
+        if (userId) {
+          // Check if the product is already in the user's shopping list
+          const { data: existingItems } = await supabase
+            .from('shopping_list')
+            .select('*')
+            .eq('shopper_id', userId)
+            .eq('product_id', Number(product.barcodeId));
+          
+          if (!existingItems || existingItems.length === 0) {
+            // Add to shopping list if not already there
+            const { error } = await supabase
+              .from('shopping_list')
+              .insert({
+                shopper_id: userId,
+                product_id: Number(product.barcodeId),
+                scanned: false
+              });
+            
+            if (error) {
+              console.error('Error adding item to shopping list:', error);
+            } else {
+              toast({
+                title: "Added to shopping list",
+                description: `${product.name} has been added to your shopping list`,
+              });
+            }
+          } else {
+            toast({
+              title: "Item already in list",
+              description: `${product.name} is already in your shopping list`,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing with shopping list:', error);
+      }
     }
   };
   
@@ -125,7 +152,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
               size="icon" 
               className="h-8 w-8 rounded-full text-primary" 
               onClick={decrementQuantity}
-              disabled={quantity <= 1 || isAddingToCart}
+              disabled={quantity <= 1}
             >
               <Minus size={14} />
             </Button>
@@ -135,7 +162,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
               size="icon" 
               className="h-8 w-8 rounded-full text-primary" 
               onClick={incrementQuantity}
-              disabled={quantity >= product.quantityInStock || isAddingToCart}
+              disabled={quantity >= product.quantityInStock}
             >
               <Plus size={14} />
             </Button>
@@ -145,10 +172,8 @@ const ProductCard = ({ product }: ProductCardProps) => {
             size="sm" 
             className="btn-hover rounded-full px-4"
             onClick={handleAddToCart}
-            disabled={isAddingToCart}
           >
-            <ShoppingCart size={14} className="mr-2" /> 
-            {isAddingToCart ? 'Adding...' : 'Add'}
+            <ShoppingCart size={14} className="mr-2" /> Add
           </Button>
         </div>
       </div>

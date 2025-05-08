@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { useCart, CartItem } from "@/contexts/CartContext";
 import { Trash, Plus, Minus } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface CartItemCardProps {
   item: CartItem;
@@ -90,27 +89,5 @@ const CartItemCard = ({ item }: CartItemCardProps) => {
     </div>
   );
 };
-
-export const CartItemSkeleton = () => (
-  <div className="flex items-center border-b border-gray-200 py-4">
-    <Skeleton className="h-20 w-20 rounded-md" />
-    <div className="ml-4 flex flex-1 flex-col">
-      <div className="flex justify-between">
-        <div>
-          <Skeleton className="h-5 w-32 mb-2" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <Skeleton className="h-5 w-16" />
-      </div>
-      <div className="flex items-center justify-between mt-2">
-        <Skeleton className="h-8 w-24 rounded-md" />
-        <div className="flex items-center">
-          <Skeleton className="h-4 w-16 mr-4" />
-          <Skeleton className="h-8 w-8 rounded-full" />
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 export default CartItemCard;

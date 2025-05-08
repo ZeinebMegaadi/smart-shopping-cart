@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,21 +29,20 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Completely simplified filtering approach to avoid type instantiation issues
-  const filteredProducts = products.filter((product) => {
-    if (!searchTerm) return true;
-    
-    const searchLower = searchTerm.toLowerCase();
-    const name = String(product.name || '');
-    const barcodeId = String(product.barcodeId || '');
-    const category = String(product.category || '');
-    const subcategory = String(product.subcategory || '');
-    
-    return name.toLowerCase().includes(searchLower) || 
-           barcodeId.toLowerCase().includes(searchLower) || 
-           category.toLowerCase().includes(searchLower) || 
-           subcategory.toLowerCase().includes(searchLower);
-  });
+  const filteredProducts = products.filter(
+    (product) => {
+      // Ensure product and its properties exist before accessing them
+      if (!product) return false;
+      
+      const searchLower = searchTerm.toLowerCase();
+      const nameMatch = product.name ? product.name.toLowerCase().includes(searchLower) : false;
+      const barcodeMatch = product.barcodeId ? product.barcodeId.toLowerCase().includes(searchLower) : false;
+      const categoryMatch = product.category ? product.category.toLowerCase().includes(searchLower) : false;
+      const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
+      
+      return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
+    }
+  );
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
