@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -29,35 +28,29 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Completely redesigned filtering function to avoid deep type instantiation
-  const getFilteredProducts = (): Product[] => {
+  // Completely redesigned filtering approach to avoid type instantiation issues
+  const filteredProducts: Product[] = React.useMemo(() => {
     if (!searchTerm) {
       return products;
     }
     
     const searchLower = searchTerm.toLowerCase();
-    const result: Product[] = [];
-    
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      if (!product) continue;
+    return products.filter((product) => {
+      // Handle nullish values safely
+      const name = product.name || '';
+      const barcodeId = product.barcodeId || '';
+      const category = product.category || '';
+      const subcategory = product.subcategory || '';
       
-      const nameMatch = product.name && product.name.toLowerCase().includes(searchLower);
-      const barcodeMatch = product.barcodeId && product.barcodeId.toLowerCase().includes(searchLower);
-      const categoryMatch = product.category && product.category.toLowerCase().includes(searchLower);
-      const subcategoryMatch = product.subcategory && product.subcategory.toLowerCase().includes(searchLower);
-      
-      if (nameMatch || barcodeMatch || categoryMatch || subcategoryMatch) {
-        result.push(product);
-      }
-    }
-    
-    return result;
-  };
-  
-  // Use the function but ensure a simple variable assignment instead of a complex expression
-  // that might lead to deep type instantiation
-  const filteredProducts: Product[] = getFilteredProducts();
+      // Simple string matching without complex expressions
+      return (
+        name.toLowerCase().includes(searchLower) ||
+        barcodeId.toLowerCase().includes(searchLower) ||
+        category.toLowerCase().includes(searchLower) ||
+        subcategory.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [products, searchTerm]);
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
@@ -384,4 +377,3 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
 };
 
 export default InventoryTable;
-
