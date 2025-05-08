@@ -28,24 +28,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Simplify the filtering logic to avoid deep type instantiation
-  const filteredProducts = React.useMemo(() => {
-    if (!searchTerm.trim()) return products;
-    
-    return products.filter(product => {
-      if (!product) return false;
-      
-      const searchLower = searchTerm.toLowerCase();
-      
-      // Use simple equality checks instead of complex property access
-      if (product.name && product.name.toLowerCase().includes(searchLower)) return true;
-      if (product.barcodeId && product.barcodeId.toLowerCase().includes(searchLower)) return true;
-      if (product.category && product.category.toLowerCase().includes(searchLower)) return true;
-      if (product.subcategory && product.subcategory.toLowerCase().includes(searchLower)) return true;
-      
-      return false;
-    });
-  }, [products, searchTerm]);
+  // Remove useMemo and simplify filtering to prevent TypeScript recursion
+  const filteredProducts = searchTerm.trim() === "" 
+    ? products 
+    : products.filter(product => {
+        const searchLower = searchTerm.toLowerCase();
+        const name = product.name?.toLowerCase() || "";
+        const barcode = product.barcodeId?.toLowerCase() || "";
+        const category = product.category?.toLowerCase() || "";
+        const subcategory = product.subcategory?.toLowerCase() || "";
+        
+        return name.includes(searchLower) || 
+               barcode.includes(searchLower) || 
+               category.includes(searchLower) || 
+               subcategory.includes(searchLower);
+      });
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
