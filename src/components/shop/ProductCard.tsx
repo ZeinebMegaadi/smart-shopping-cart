@@ -33,24 +33,30 @@ const ProductCard = ({ product }: ProductCardProps) => {
   };
   
   const handleAddToCart = async () => {
-    if (isAdding) return; // Prevent double-clicks
+    if (isAdding) {
+      console.log("[PRODUCT] Add to cart blocked - already in progress");
+      return;
+    }
     
     setIsAdding(true);
     
     try {
+      // Create a deep copy of the product to avoid mutation issues
+      const productCopy = JSON.parse(JSON.stringify(product));
+      
       // Log product details before adding to cart to help debug
-      console.log("Adding product to cart:", {
-        id: product.id,
-        name: product.name,
-        barcodeId: product.barcodeId,
-        numericId: typeof product.id === 'string' ? parseInt(product.id, 10) : product.id
+      console.log("[PRODUCT] Adding product to cart:", {
+        id: productCopy.id,
+        name: productCopy.name,
+        barcodeId: productCopy.barcodeId,
+        numericId: typeof productCopy.id === 'string' ? parseInt(productCopy.id, 10) : productCopy.id
       });
       
-      // Pass the full product to addToCart
-      await addToCart(product, quantity);
+      // Pass the product copy to addToCart
+      await addToCart(productCopy, quantity);
       setQuantity(1); // Reset quantity after adding
     } catch (error) {
-      console.error("Error adding product to cart:", error);
+      console.error("[PRODUCT] Error adding product to cart:", error);
       toast({
         title: "Error",
         description: "Failed to add product to cart. Please try again.",

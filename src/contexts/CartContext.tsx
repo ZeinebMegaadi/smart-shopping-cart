@@ -31,6 +31,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   const { isAuthenticated } = useAuthStatus();
 
+  // Debug function to log current cart state
+  const logCartState = (message: string) => {
+    console.log(`[CART DEBUG] ${message}`);
+    console.log('Unscanned items:', items.map(item => `${item.product.name} (ID: ${item.product.id})`));
+    console.log('Scanned items:', scannedItems.map(item => `${item.product.name} (ID: ${item.product.id})`));
+  };
+
   // Load cart from localStorage on initial render
   useEffect(() => {
     const savedCart = localStorage.getItem("cart");
@@ -44,10 +51,15 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         }));
         
         // Split items based on scanned flag
-        setItems(processedCart.filter((item: CartItem) => item.scanned === false));
-        setScannedItems(processedCart.filter((item: CartItem) => item.scanned === true));
+        const unscannedItems = processedCart.filter((item: CartItem) => item.scanned === false);
+        const newScannedItems = processedCart.filter((item: CartItem) => item.scanned === true);
+        
+        console.log(`[CART INIT] Loading from localStorage: ${unscannedItems.length} unscanned, ${newScannedItems.length} scanned items`);
+        
+        setItems(unscannedItems);
+        setScannedItems(newScannedItems);
       } catch (error) {
-        console.error("Failed to parse saved cart:", error);
+        console.error("[CART ERROR] Failed to parse saved cart:", error);
         localStorage.removeItem("cart");
       }
     }
@@ -64,7 +76,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (!userId) return;
 
-        console.log('Loading shopping list for user:', userId);
+        console.log('[CART SUPABASE] Loading shopping list for user:', userId);
 
         // Load shopping list from Supabase
         const { data: shoppingListItems, error } = await supabase
@@ -87,11 +99,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           .eq('shopper_id', userId);
 
         if (error) {
-          console.error('Error loading shopping list:', error);
+          console.error('[CART ERROR] Error loading shopping list:', error);
           return;
         }
 
-        console.log('Shopping list items loaded:', shoppingListItems);
+        console.log('[CART SUPABASE] Shopping list items loaded:', shoppingListItems);
 
         if (shoppingListItems && shoppingListItems.length > 0) {
           // Convert Supabase data to CartItem format
@@ -102,7 +114,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             // Map product from Supabase data format to our Product type
             const supabaseProduct = item.products;
             if (!supabaseProduct) {
-              console.log(`Skipping item with product_id ${item.product_id} - no product data found`);
+              console.log(`[CART WARN] Skipping item with product_id ${item.product_id} - no product data found`);
               return;
             }
 
@@ -133,29 +145,31 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
             // Split items based on scanned status
             if (isScanned) {
-              console.log(`Item ${product.name} (ID: ${item.id}) IS scanned, adding to scanned items list`);
+              console.log(`[CART SUPABASE] Item ${product.name} (ID: ${item.id}) IS scanned, adding to scanned items list`);
               scannedItemsList.push(cartItem);
             } else {
-              console.log(`Item ${product.name} (ID: ${item.id}) is NOT scanned, adding to unscanned items list`);
+              console.log(`[CART SUPABASE] Item ${product.name} (ID: ${item.id}) is NOT scanned, adding to unscanned items list`);
               unscannedItems.push(cartItem);
             }
           });
 
-          console.log(`Loaded ${unscannedItems.length} unscanned items and ${scannedItemsList.length} scanned items`);
+          console.log(`[CART SUPABASE] Loaded ${unscannedItems.length} unscanned items and ${scannedItemsList.length} scanned items`);
 
-          // Update state with the new items
-          setItems(unscannedItems);
-          setScannedItems(scannedItemsList);
-
+          // Update state with the new items using functional updates to guarantee latest state
+          setItems(() => unscannedItems);
+          setScannedItems(() => scannedItemsList);
+          
           // Also update localStorage
           localStorage.setItem("cart", JSON.stringify([...unscannedItems, ...scannedItemsList]));
+          logCartState("After loading from Supabase");
         } else {
           setItems([]);
           setScannedItems([]);
           localStorage.removeItem("cart");
+          console.log('[CART SUPABASE] No items found in shopping list, cleared cart');
         }
       } catch (error) {
-        console.error('Error in loadShoppingListFromSupabase:', error);
+        console.error('[CART ERROR] Error in loadShoppingListFromSupabase:', error);
       }
     };
 
@@ -492,30 +506,49 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [isAuthenticated, toast]);
 
-  // Update localStorage whenever cart changes
+  // Update localStorage whenever cart changes - use a deep copy to avoid mutation issues
   useEffect(() => {
-    const allItems = [...items, ...scannedItems];
+    const allItems = [...JSON.parse(JSON.stringify(items)), ...JSON.parse(JSON.stringify(scannedItems))];
     localStorage.setItem("cart", JSON.stringify(allItems));
+    console.log(`[CART STATE] Updated localStorage with ${items.length} unscanned items and ${scannedItems.length} scanned items`);
   }, [items, scannedItems]);
 
   // Fixed addToCart function to correctly check for existing products and handle product IDs properly
   const addToCart = async (product: Product, quantity = 1) => {
-    console.log("Adding to cart:", product, "quantity:", quantity);
+    console.log("[CART ADD] Adding to cart:", { 
+      id: product.id,
+      name: product.name,
+      barcodeId: product.barcodeId
+    }, "quantity:", quantity);
+
+    if (!product || !product.id) {
+      console.error("[CART ERROR] Attempted to add invalid product:", product);
+      toast({
+        title: "Error",
+        description: "Cannot add invalid product to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Create a deep copy of the product to avoid mutation issues
+    const productCopy = JSON.parse(JSON.stringify(product));
     
     // Check if the product is already in the cart (using exact ID match only)
     const existingItemById = items.find(item => item.product.id === product.id);
     
     if (existingItemById) {
       // Update quantity for existing item
-      console.log("Found existing item by ID, updating quantity");
-      const updatedItems = items.map(item => {
-        if (item.product.id === product.id) {
-          return { ...item, quantity: item.quantity + quantity };
-        }
-        return item;
-      });
-      
-      setItems(updatedItems);
+      console.log("[CART UPDATE] Found existing item by ID, updating quantity");
+      // Use functional update to ensure we're working with the latest state
+      setItems(currentItems => 
+        currentItems.map(item => {
+          if (item.product.id === product.id) {
+            return { ...item, quantity: item.quantity + quantity };
+          }
+          return item;
+        })
+      );
       
       toast({
         title: "Cart updated",
@@ -524,14 +557,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     } 
     else {
       // Item doesn't exist, add it as new
-      console.log("Adding new item to cart:", product.name);
+      console.log("[CART ADD] Adding new item to cart:", product.name);
       const newItem = { 
-        product, 
+        product: productCopy, 
         quantity,
         scanned: false // Explicitly set to false for new items
       };
       
-      setItems(prev => [...prev, newItem]);
+      // Use functional update to ensure we're working with the latest state
+      setItems(currentItems => {
+        const updatedItems = [...currentItems, newItem];
+        console.log("[CART STATE] New cart state:", updatedItems.map(i => `${i.product.name} (ID: ${i.product.id})`));
+        return updatedItems;
+      });
       
       toast({
         title: "Added to cart",
@@ -545,7 +583,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           const userId = session?.user?.id;
           
           if (userId) {
-            console.log(`User ${userId} is authenticated, checking if product ${product.id} exists in DB`);
+            console.log(`[CART SUPABASE] User ${userId} is authenticated, checking if product ${product.id} exists in DB`);
             
             // First ensure we're working with a proper product ID for database queries
             let productIdForDb: number;
@@ -554,25 +592,25 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               // Try to directly use the product.id if it's a number already
               if (typeof product.id === 'number') {
                 productIdForDb = product.id;
-                console.log(`Product ID is already a number: ${productIdForDb}`);
+                console.log(`[CART SUPABASE] Product ID is already a number: ${productIdForDb}`);
               } else {
                 // Convert string ID to number if possible
                 productIdForDb = parseInt(product.id, 10);
                 if (isNaN(productIdForDb)) {
                   throw new Error("Product ID is not a valid number");
                 }
-                console.log(`Converted product ID string to number: ${productIdForDb}`);
+                console.log(`[CART SUPABASE] Converted product ID string to number: ${productIdForDb}`);
               }
             } catch (parseError) {
-              console.error("Error parsing product ID:", parseError);
+              console.error("[CART ERROR] Error parsing product ID:", parseError);
               
               // If we can't use the ID, look up the product by name as fallback
-              console.log(`Will look up product "${product.name}" by name instead of ID`);
+              console.log(`[CART SUPABASE] Will look up product "${product.name}" by name instead of ID`);
               productIdForDb = 0; // Initialize with invalid ID
             }
             
             // First try to find the product by ID in products table
-            console.log(`Looking for product in database with ID: ${productIdForDb}`);
+            console.log(`[CART SUPABASE] Looking for product in database with ID: ${productIdForDb}`);
             let foundProduct = null;
             
             // Only attempt ID-based lookup if we have a valid ID
@@ -583,24 +621,27 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 .eq('id', productIdForDb)
                 .maybeSingle();
               
-              console.log('Product lookup by ID response:', { productById, productIdError });
+              console.log('[CART SUPABASE] Product lookup by ID response:', { productById, productIdError });
               
               if (!productIdError && productById) {
                 foundProduct = productById;
-                console.log(`Found product by ID: ${foundProduct.id} - ${foundProduct.Product}`);
+                console.log(`[CART SUPABASE] Found product by ID: ${foundProduct.id} - ${foundProduct.Product}`);
               }
             }
             
             // If no product found by ID, try by name with case-insensitive search
             if (!foundProduct) {
-              console.log(`Product not found by ID, searching by name: "${product.name}"`);
+              console.log(`[CART SUPABASE] Product not found by ID, searching by name: "${product.name}"`);
               
               const { data: productsByName, error: nameSearchError } = await supabase
                 .from('products')
                 .select('id, Product')
                 .ilike('Product', `%${product.name}%`);
               
-              console.log('Product search by name results:', { productsByName, nameSearchError });
+              console.log('[CART SUPABASE] Product search by name results:', { 
+                count: productsByName?.length || 0, 
+                error: nameSearchError 
+              });
               
               if (!nameSearchError && productsByName && productsByName.length > 0) {
                 // Try to find exact match first (ignoring case)
@@ -610,11 +651,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 
                 if (exactMatch) {
                   foundProduct = exactMatch;
-                  console.log(`Found exact name match: ${foundProduct.id} - ${foundProduct.Product}`);
+                  console.log(`[CART SUPABASE] Found exact name match: ${foundProduct.id} - ${foundProduct.Product}`);
                 } else {
                   // Otherwise use the first partial match
                   foundProduct = productsByName[0];
-                  console.log(`Using first partial match: ${foundProduct.id} - ${foundProduct.Product}`);
+                  console.log(`[CART SUPABASE] Using first partial match: ${foundProduct.id} - ${foundProduct.Product}`);
                 }
               }
             }
@@ -622,7 +663,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             // Final check if we have found a valid product
             if (foundProduct) {
               const finalProductId = foundProduct.id;
-              console.log(`Using final product ID for shopping list insert: ${finalProductId}`);
+              console.log(`[CART SUPABASE] Using final product ID for shopping list insert: ${finalProductId}`);
               
               // Check if the item is already in shopping list to avoid duplicates
               const { data: existingItems, error: listError } = await supabase
@@ -631,10 +672,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 .eq('shopper_id', userId)
                 .eq('product_id', finalProductId);
               
-              console.log('Shopping list check response:', { existingItems, listError });
+              console.log('[CART SUPABASE] Shopping list check response:', { 
+                count: existingItems?.length || 0, 
+                error: listError 
+              });
               
               if (listError) {
-                console.error('Error checking shopping list:', listError);
+                console.error('[CART ERROR] Error checking shopping list:', listError);
                 toast({
                   title: "Sync Error", 
                   description: `Error checking shopping list: ${listError.message}`,
@@ -644,7 +688,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               }
               
               if (!existingItems || existingItems.length === 0) {
-                console.log(`Inserting product (ID: ${finalProductId}) into shopping_list`);
+                console.log(`[CART SUPABASE] Inserting product (ID: ${finalProductId}) into shopping_list`);
                 // Insert the item into shopping_list
                 const { data: insertData, error: insertError } = await supabase
                   .from('shopping_list')
@@ -655,10 +699,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                   })
                   .select();
                 
-                console.log('Insert operation result:', { insertData, insertError });
+                console.log('[CART SUPABASE] Insert operation result:', { 
+                  insertData, 
+                  error: insertError 
+                });
                 
                 if (insertError) {
-                  console.error('Error adding item to shopping list:', insertError);
+                  console.error('[CART ERROR] Error adding item to shopping list:', insertError);
                   toast({
                     title: "Sync Error",
                     description: `Could not sync ${product.name} with server: ${insertError.message}`,
@@ -669,9 +716,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                     title: "Synced",
                     description: `${product.name} added to your shopping list`,
                   });
+                  // If DB insert succeeded, update local item with the shopping list ID
+                  if (insertData && insertData.length > 0) {
+                    const shoppingListId = insertData[0].id;
+                    setItems(currentItems => 
+                      currentItems.map(item => {
+                        if (item.product.id === product.id) {
+                          return { ...item, shoppingListId };
+                        }
+                        return item;
+                      })
+                    );
+                  }
                 }
               } else {
-                console.log(`Product already exists in shopping list, not inserting again`);
+                console.log(`[CART SUPABASE] Product already exists in shopping list, not inserting again`);
                 toast({
                   title: "Already in List",
                   description: `${product.name} is already in your shopping list`,
@@ -679,7 +738,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 });
               }
             } else {
-              console.log(`Product "${product.name}" not found in products table`);
+              console.log(`[CART WARN] Product "${product.name}" not found in products table`);
               toast({
                 title: "Local Only",
                 description: `${product.name} added locally only (not found in database)`,
@@ -687,7 +746,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
         } catch (error) {
-          console.error('Error syncing with shopping list:', error);
+          console.error('[CART ERROR] Error syncing with shopping list:', error);
           toast({
             title: "Sync Error",
             description: "Failed to sync with server. Item added locally only.",
@@ -695,16 +754,21 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
       }
+      
+      // Log the final cart state after the operation
+      setTimeout(() => logCartState("After adding item"), 100);
     }
   };
 
   const removeFromCart = async (productId: string) => {
+    console.log(`[CART REMOVE] Removing product with ID ${productId}`);
+    
     // Check which list the item is in
     const unscannedItem = items.find(item => item.product.id === productId);
     const scannedItem = scannedItems.find(item => item.product.id === productId);
     const itemToRemove = unscannedItem || scannedItem;
     
-    // Remove from appropriate list
+    // Remove from appropriate list using functional updates
     if (unscannedItem) {
       setItems(prev => prev.filter(item => item.product.id !== productId));
     }
@@ -727,6 +791,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         const userId = session?.user?.id;
         
         if (userId) {
+          console.log(`[CART SUPABASE] Removing product ${productId} from shopping_list`);
+          
           // Delete item from shopping_list in Supabase
           const { error } = await supabase
             .from('shopping_list')
@@ -735,16 +801,23 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .eq('product_id', Number(itemToRemove.product.id));
             
           if (error) {
-            console.error('Error removing item from shopping list:', error);
+            console.error('[CART ERROR] Error removing item from shopping list:', error);
+          } else {
+            console.log('[CART SUPABASE] Successfully removed item from shopping list');
           }
         }
       } catch (error) {
-        console.error('Error syncing with shopping list:', error);
+        console.error('[CART ERROR] Error syncing with shopping list:', error);
       }
     }
+    
+    // Log the final cart state after the operation
+    setTimeout(() => logCartState("After removing item"), 100);
   };
 
   const updateQuantity = async (productId: string, quantity: number) => {
+    console.log(`[CART UPDATE] Updating quantity for product ${productId} to ${quantity}`);
+    
     if (quantity <= 0) {
       removeFromCart(productId);
       return;
@@ -755,12 +828,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     const scannedIndex = scannedItems.findIndex(item => item.product.id === productId);
     
     if (unscannedIndex !== -1) {
-      // Update quantity in unscanned items
+      // Update quantity in unscanned items using functional update
       setItems(prev => prev.map((item, index) => 
         index === unscannedIndex ? { ...item, quantity } : item
       ));
     } else if (scannedIndex !== -1) {
-      // Update quantity in scanned items
+      // Update quantity in scanned items using functional update
       setScannedItems(prev => prev.map((item, index) => 
         index === scannedIndex ? { ...item, quantity } : item
       ));
@@ -768,6 +841,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Currently there's no quantity field in the shopping_list table,
     // so we just ensure the item exists in Supabase but don't update its quantity
+    
+    // Log the final cart state after the operation
+    setTimeout(() => logCartState("After updating quantity"), 100);
   };
 
   const clearCart = async () => {
@@ -775,6 +851,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setItems([]);
     setScannedItems([]);
     localStorage.removeItem("cart");
+    
+    console.log('[CART CLEAR] Cart cleared');
     
     toast({
       title: "Cart cleared",
@@ -788,6 +866,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         const userId = session?.user?.id;
         
         if (userId) {
+          console.log('[CART SUPABASE] Clearing all shopping list items');
+          
           // Delete all items from shopping_list for this user in Supabase
           const { error } = await supabase
             .from('shopping_list')
@@ -795,11 +875,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .eq('shopper_id', userId);
             
           if (error) {
-            console.error('Error clearing shopping list:', error);
+            console.error('[CART ERROR] Error clearing shopping list:', error);
+          } else {
+            console.log('[CART SUPABASE] Shopping list successfully cleared');
           }
         }
       } catch (error) {
-        console.error('Error syncing with shopping list:', error);
+        console.error('[CART ERROR] Error syncing with shopping list:', error);
       }
     }
   };
