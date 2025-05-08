@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -27,7 +28,7 @@ interface ShoppingItem {
   product_id?: number;
 }
 
-// Breaking the recursive type definition by redefining what's included in a Shopper
+// Fixed interface to avoid recursive type definition
 interface Shopper {
   id: string;
   email: string;
@@ -36,11 +37,7 @@ interface Shopper {
   rfidCardId?: string;
   username?: string;
   // Define shopping list items without circular references
-  shoppingList?: Array<{
-    id: string;
-    scanned: boolean;
-    product_id?: number;
-  }>;
+  shoppingList?: ShoppingItem[];
 }
 
 interface Owner {
@@ -48,7 +45,12 @@ interface Owner {
   email: string;
 }
 
-const UserManagement = () => {
+// Props interface for UserManagement component
+interface UserManagementProps {
+  initialShoppers?: any[];
+}
+
+const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers }) => {
   const [shoppers, setShoppers] = useState<Shopper[]>([]);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [newOwnerEmail, setNewOwnerEmail] = useState("");
@@ -65,9 +67,8 @@ const UserManagement = () => {
     try {
       // Fetch Shoppers
       const { data: shoppersData, error: shoppersError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "shopper");
+        .from("shoppers")
+        .select("*");
 
       if (shoppersError) {
         console.error("Error fetching shoppers:", shoppersError);
@@ -77,9 +78,8 @@ const UserManagement = () => {
 
       // Fetch Owners
       const { data: ownersData, error: ownersError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "owner");
+        .from("owners")
+        .select("*");
 
       if (ownersError) {
         console.error("Error fetching owners:", ownersError);
@@ -93,83 +93,48 @@ const UserManagement = () => {
 
   const handleAddOwner = async () => {
     try {
-      // Check if the email already exists in auth.users
-      const { data: existingUser, error: userError } = await supabase.auth.admin.getUserByEmail(newOwnerEmail);
-  
-      if (userError) {
-        console.error("Error checking existing user:", userError);
+      // First check if the email already exists in owners table
+      const { data: existingOwner, error: ownerCheckError } = await supabase
+        .from("owners")
+        .select("*")
+        .eq("email", newOwnerEmail)
+        .maybeSingle();
+      
+      if (ownerCheckError) {
+        console.error("Error checking existing owner:", ownerCheckError);
+      }
+      
+      if (existingOwner) {
         toast({
-          title: "Error",
-          description: `Failed to check existing user: ${userError.message}`,
-          variant: "destructive",
+          title: "Owner exists",
+          description: `${newOwnerEmail} is already an owner.`,
+          variant: "default",
         });
         return;
       }
-  
-      if (existingUser && existingUser.user) {
-        // User exists, so update the profile
-        const userId = existingUser.user.id;
-        const { error: profileUpdateError } = await supabase
-          .from("profiles")
-          .update({ role: "owner" })
-          .eq("id", userId);
-  
-        if (profileUpdateError) {
-          console.error("Error updating profile:", profileUpdateError);
-          toast({
-            title: "Error",
-            description: `Failed to update profile: ${profileUpdateError.message}`,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Owner Added",
-            description: `${newOwnerEmail} has been granted owner role.`,
-          });
-          fetchUsers(); // Refresh user list
-        }
-      } else {
-        // User does not exist, so create a new user
-        const { data: newUser, error: newUserError } = await supabase.auth.admin.createUser({
+      
+      // Create new owner entry
+      const { error: insertError } = await supabase
+        .from("owners")
+        .insert({
           email: newOwnerEmail,
-          password: generateRandomPassword(), // Consider generating a random password
-          user_metadata: {
-            role: "owner",
-          },
+          id: crypto.randomUUID(), // Generate a random UUID for new owner
         });
-  
-        if (newUserError) {
-          console.error("Error creating user:", newUserError);
-          toast({
-            title: "Error",
-            description: `Failed to create user: ${newUserError.message}`,
-            variant: "destructive",
-          });
-        } else {
-          // Create a profile for the new user
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .insert({
-              id: newUser.user.id,
-              email: newOwnerEmail,
-              role: "owner",
-            });
-  
-          if (profileError) {
-            console.error("Error creating profile:", profileError);
-            toast({
-              title: "Error",
-              description: `Failed to create profile: ${profileError.message}`,
-              variant: "destructive",
-            });
-          } else {
-            toast({
-              title: "Owner Added",
-              description: `New owner ${newOwnerEmail} has been created.`,
-            });
-            fetchUsers(); // Refresh user list
-          }
-        }
+        
+      if (insertError) {
+        console.error("Error inserting owner:", insertError);
+        toast({
+          title: "Error",
+          description: `Failed to add owner: ${insertError.message}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Owner Added",
+          description: `${newOwnerEmail} has been added as an owner.`,
+          variant: "default",
+        });
+        fetchUsers(); // Refresh user list
       }
     } catch (error) {
       console.error("Unexpected error adding owner:", error);
@@ -183,7 +148,6 @@ const UserManagement = () => {
     }
   };
   
-
   const generateRandomPassword = () => {
     const length = 12;
     const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

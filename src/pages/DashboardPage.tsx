@@ -248,7 +248,7 @@ const DashboardPage = () => {
         
         <TabsContent value="users" className="animate-fade-in">
           <div className="dashboard-card hover-lift glass-effect border-gradient">
-            <UserManagement initialShoppers={shoppers} />
+            <UserManagement />
           </div>
         </TabsContent>
       </Tabs>
