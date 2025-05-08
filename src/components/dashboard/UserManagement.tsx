@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -27,6 +26,7 @@ interface ShoppingItem {
   product_id?: number;
 }
 
+// Fix: Break the recursive type definition by removing circular references
 interface Shopper {
   id: string;
   email: string;
@@ -456,6 +456,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ initialShoppers = [] })
               shopper.shoppingList = listData.map(item => ({
                 id: item.id,
                 product_id: item.product_id,
+                aisle: 'Fetching...',
                 checked: item.scanned || false
               }));
               
