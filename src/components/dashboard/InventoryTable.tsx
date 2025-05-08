@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -29,20 +28,18 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  const filteredProducts = products.filter(
-    (product) => {
-      // Ensure product and its properties exist before accessing them
-      if (!product) return false;
-      
-      const searchLower = searchTerm.toLowerCase();
-      const nameMatch = product.name ? product.name.toLowerCase().includes(searchLower) : false;
-      const barcodeMatch = product.barcodeId ? product.barcodeId.toLowerCase().includes(searchLower) : false;
-      const categoryMatch = product.category ? product.category.toLowerCase().includes(searchLower) : false;
-      const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
-      
-      return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
-    }
-  );
+  const filteredProducts = products.filter((product: Product) => {
+    // Ensure product and its properties exist before accessing them
+    if (!product) return false;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const nameMatch = product.name ? product.name.toLowerCase().includes(searchLower) : false;
+    const barcodeMatch = product.barcodeId ? product.barcodeId.toLowerCase().includes(searchLower) : false;
+    const categoryMatch = product.category ? product.category.toLowerCase().includes(searchLower) : false;
+    const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
+    
+    return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
+  });
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
