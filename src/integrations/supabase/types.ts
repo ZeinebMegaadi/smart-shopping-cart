@@ -61,27 +61,21 @@ export type Database = {
         Row: {
           email: string
           id: string
-          product_id: number[] | null
           rfid_tag: string | null
-          scanned: boolean[] | null
           timestamp: string | null
           username: string | null
         }
         Insert: {
           email: string
           id: string
-          product_id?: number[] | null
           rfid_tag?: string | null
-          scanned?: boolean[] | null
           timestamp?: string | null
           username?: string | null
         }
         Update: {
           email?: string
           id?: string
-          product_id?: number[] | null
           rfid_tag?: string | null
-          scanned?: boolean[] | null
           timestamp?: string | null
           username?: string | null
         }
