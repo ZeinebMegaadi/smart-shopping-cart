@@ -1,1 +1,33 @@
+
 project_id = "nflbaphvprbowimaexom"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[inbucket]
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+
+[analytics]
+enabled = false
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+
+[[realtime.tables]]
+name = "shopping_list"
+schema = "public"
