@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -26,7 +27,7 @@ interface ShoppingItem {
   product_id?: number;
 }
 
-// Fix: Break the recursive type definition by removing circular references
+// Fix the recursive type definition by explicitly defining what's included
 interface Shopper {
   id: string;
   email: string;
@@ -34,7 +35,7 @@ interface Shopper {
   name?: string;
   rfidCardId?: string;
   username?: string;
-  shoppingList?: ShoppingItem[];
+  shoppingList?: ShoppingItem[]; // Non-recursive reference
 }
 
 interface Owner {

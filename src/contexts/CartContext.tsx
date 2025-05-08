@@ -619,7 +619,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               toast({
                 title: "Already in List",
                 description: `${product.name} is already in your shopping list`,
-                variant: "info"
+                variant: "default" // Change from "info" to "default"
               });
             }
           }
