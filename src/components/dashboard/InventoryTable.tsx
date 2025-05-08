@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,28 +29,34 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Completely redesigned filtering approach to avoid type instantiation issues
-  const filteredProducts: Product[] = React.useMemo(() => {
+  // Simplified filtering approach to avoid type instantiation issues
+  const filteredProducts = React.useMemo(() => {
     if (!searchTerm) {
       return products;
     }
     
     const searchLower = searchTerm.toLowerCase();
-    return products.filter((product) => {
-      // Handle nullish values safely
+    const filtered: Product[] = [];
+    
+    // Using traditional for loop to avoid complex type inference
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
       const name = product.name || '';
       const barcodeId = product.barcodeId || '';
       const category = product.category || '';
       const subcategory = product.subcategory || '';
       
-      // Simple string matching without complex expressions
-      return (
+      if (
         name.toLowerCase().includes(searchLower) ||
         barcodeId.toLowerCase().includes(searchLower) ||
         category.toLowerCase().includes(searchLower) ||
         subcategory.toLowerCase().includes(searchLower)
-      );
-    });
+      ) {
+        filtered.push(product);
+      }
+    }
+    
+    return filtered;
   }, [products, searchTerm]);
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
