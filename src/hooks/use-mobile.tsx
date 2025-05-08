@@ -1,4 +1,3 @@
-
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
@@ -18,6 +17,3 @@ export function useIsMobile() {
 
   return !!isMobile
 }
-
-// Add this alias for backward compatibility if needed
-export const useMobile = useIsMobile;
