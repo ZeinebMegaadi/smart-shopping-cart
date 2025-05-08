@@ -28,8 +28,8 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  const filteredProducts = products.filter((product: Product) => {
-    // Ensure product and its properties exist before accessing them
+  // Explicitly define the filtering function to avoid deep type instantiation
+  const filterProduct = (product: Product): boolean => {
     if (!product) return false;
     
     const searchLower = searchTerm.toLowerCase();
@@ -39,7 +39,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     const subcategoryMatch = product.subcategory ? product.subcategory.toLowerCase().includes(searchLower) : false;
     
     return nameMatch || barcodeMatch || categoryMatch || subcategoryMatch;
-  });
+  };
+  
+  const filteredProducts = products.filter(filterProduct);
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {
