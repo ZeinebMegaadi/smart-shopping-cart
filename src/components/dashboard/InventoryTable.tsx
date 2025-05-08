@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -29,35 +28,21 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ initialProducts = [] })
     setProducts(initialProducts);
   }, [initialProducts]);
   
-  // Simplified filtering approach to avoid type instantiation issues
-  const filteredProducts = React.useMemo(() => {
-    if (!searchTerm) {
-      return products;
-    }
+  // Completely simplified filtering approach to avoid type instantiation issues
+  const filteredProducts = products.filter((product) => {
+    if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
-    const filtered: Product[] = [];
+    const name = String(product.name || '');
+    const barcodeId = String(product.barcodeId || '');
+    const category = String(product.category || '');
+    const subcategory = String(product.subcategory || '');
     
-    // Using traditional for loop to avoid complex type inference
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      const name = product.name || '';
-      const barcodeId = product.barcodeId || '';
-      const category = product.category || '';
-      const subcategory = product.subcategory || '';
-      
-      if (
-        name.toLowerCase().includes(searchLower) ||
-        barcodeId.toLowerCase().includes(searchLower) ||
-        category.toLowerCase().includes(searchLower) ||
-        subcategory.toLowerCase().includes(searchLower)
-      ) {
-        filtered.push(product);
-      }
-    }
-    
-    return filtered;
-  }, [products, searchTerm]);
+    return name.toLowerCase().includes(searchLower) || 
+           barcodeId.toLowerCase().includes(searchLower) || 
+           category.toLowerCase().includes(searchLower) || 
+           subcategory.toLowerCase().includes(searchLower);
+  });
   
   const handleUpdateProduct = async (updatedProduct: Product) => {
     try {

@@ -29,7 +29,7 @@ export type Database = {
           Aisle: string
           Category: string
           id: number
-          "image-url": string | null
+          image_url: string | null
           Price: number
           Product: string
           Stock: number
@@ -39,7 +39,7 @@ export type Database = {
           Aisle: string
           Category: string
           id?: number
-          "image-url"?: string | null
+          image_url?: string | null
           Price: number
           Product?: string
           Stock: number
@@ -49,7 +49,7 @@ export type Database = {
           Aisle?: string
           Category?: string
           id?: number
-          "image-url"?: string | null
+          image_url?: string | null
           Price?: number
           Product?: string
           Stock?: number
@@ -61,21 +61,27 @@ export type Database = {
         Row: {
           email: string
           id: string
+          product_id: number[] | null
           rfid_tag: string | null
+          scanned: boolean[] | null
           timestamp: string | null
           username: string | null
         }
         Insert: {
           email: string
           id: string
+          product_id?: number[] | null
           rfid_tag?: string | null
+          scanned?: boolean[] | null
           timestamp?: string | null
           username?: string | null
         }
         Update: {
           email?: string
           id?: string
+          product_id?: number[] | null
           rfid_tag?: string | null
+          scanned?: boolean[] | null
           timestamp?: string | null
           username?: string | null
         }
