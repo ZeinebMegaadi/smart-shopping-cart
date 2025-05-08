@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "../services/mockData";
 import { useToast } from "@/components/ui/use-toast";
@@ -91,6 +90,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               quantityInStock: supabaseProduct["Stock"],
               category: supabaseProduct["Category"],
               subcategory: supabaseProduct["Subcategory"],
+              aisle: supabaseProduct["Aisle"] || "Unknown", // Add default value for aisle
               description: `Product from ${supabaseProduct["Category"]} category`,
               image: supabaseProduct.image_url || '/placeholder.svg',
               "image-url": supabaseProduct.image_url || null,
@@ -212,6 +212,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
                 quantityInStock: supabaseProduct["Stock"],
                 category: supabaseProduct["Category"],
                 subcategory: supabaseProduct["Subcategory"],
+                aisle: supabaseProduct["Aisle"] || "Unknown", // Add default value for aisle
                 description: `Product from ${supabaseProduct["Category"]} category`,
                 image: supabaseProduct.image_url || '/placeholder.svg',
                 "image-url": supabaseProduct.image_url || null,
